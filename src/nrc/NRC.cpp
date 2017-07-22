@@ -1,4 +1,4 @@
-#include "DemoProject.h"
+#include "NRC.h"
 
 #include <iostream>
 #include <fstream>
@@ -16,11 +16,11 @@ static inline bool isnan(const Eigen::MatrixBase<Derived>& x) {
 using namespace std;
 
 /**
- * DemoProject::readRedisValues()
+ * NRC::readRedisValues()
  * ------------------------------
  * Retrieve all read keys from Redis.
  */
-void DemoProject::readRedisValues() {
+void NRC::readRedisValues() {
 	// Read from Redis current sensor values
 	robot->_q = redis_.getEigenMatrix(KEY_JOINT_POSITIONS);
 	robot->_dq = redis_.getEigenMatrix(KEY_JOINT_VELOCITIES);
@@ -52,11 +52,11 @@ void DemoProject::readRedisValues() {
 }
 
 /**
- * DemoProject::writeRedisValues()
+ * NRC::writeRedisValues()
  * -------------------------------
  * Send all write keys to Redis.
  */
-void DemoProject::writeRedisValues() {
+void NRC::writeRedisValues() {
 	// Send end effector position and desired position
 	redis_.setEigenMatrix(KEY_EE_POS, x_);
 	redis_.setEigenMatrix(KEY_EE_POS_DES, x_des_);
@@ -66,11 +66,11 @@ void DemoProject::writeRedisValues() {
 }
 
 /**
- * DemoProject::updateModel()
+ * NRC::updateModel()
  * --------------------------
  * Update the robot model and all the relevant member variables.
  */
-void DemoProject::updateModel() {
+void NRC::updateModel() {
 	// Update the model
 	robot->updateModel();
 
@@ -88,11 +88,11 @@ void DemoProject::updateModel() {
 }
 
 /**
- * DemoProject::computeJointSpaceControlTorques()
+ * NRC::computeJointSpaceControlTorques()
  * ----------------------------------------------
  * Controller to initialize robot to desired joint position.
  */
-DemoProject::ControllerStatus DemoProject::computeJointSpaceControlTorques() {
+NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
 	// Finish if the robot has converged to q_initial
 	Eigen::VectorXd q_err = robot->_q - q_des_;
 	Eigen::VectorXd dq_err = robot->_dq - dq_des_;
@@ -107,11 +107,11 @@ DemoProject::ControllerStatus DemoProject::computeJointSpaceControlTorques() {
 }
 
 /**
- * DemoProject::computeOperationalSpaceControlTorques()
+ * NRC::computeOperationalSpaceControlTorques()
  * ----------------------------------------------------
  * Controller to move end effector to desired position.
  */
-DemoProject::ControllerStatus DemoProject::computeOperationalSpaceControlTorques() {
+NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
 	// PD position control with velocity saturation
 	Eigen::Vector3d x_err = x_ - x_des_;
 	// Eigen::Vector3d dx_err = dx_ - dx_des_;
@@ -136,11 +136,11 @@ DemoProject::ControllerStatus DemoProject::computeOperationalSpaceControlTorques
 }
 
 /**
- * public DemoProject::initialize()
+ * public NRC::initialize()
  * --------------------------------
  * Initialize timer and Redis client
  */
-void DemoProject::initialize() {
+void NRC::initialize() {
 	// Create a loop timer
 	timer_.setLoopFrequency(kControlFreq);   // 1 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -165,11 +165,11 @@ void DemoProject::initialize() {
 }
 
 /**
- * public DemoProject::runLoop()
+ * public NRC::runLoop()
  * -----------------------------
- * DemoProject state machine
+ * NRC state machine
  */
-void DemoProject::runLoop() {
+void NRC::runLoop() {
 	while (g_runloop) {
 		// Wait for next scheduled loop (controller must run at precise rate)
 		timer_.waitForNextLoop();
@@ -201,7 +201,7 @@ void DemoProject::runLoop() {
 			case JOINT_SPACE_INITIALIZATION:
 				if (computeJointSpaceControlTorques() == FINISHED) {
 					cout << "Joint position initialized. Switching to operational space controller." << endl;
-					controller_state_ = DemoProject::OP_SPACE_POSITION_CONTROL;
+					controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
 				};
 				break;
 
@@ -260,7 +260,7 @@ int main(int argc, char** argv) {
 
 	// Start controller app
 	cout << "Initializing app with " << robot_name << endl;
-	DemoProject app(move(robot), robot_name);
+	NRC app(move(robot), robot_name);
 	app.initialize();
 	cout << "App initialized. Waiting for Redis synchronization." << endl;
 	app.runLoop();

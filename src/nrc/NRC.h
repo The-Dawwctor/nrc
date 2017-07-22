@@ -1,5 +1,5 @@
-#ifndef DEMO_PROJECT_H
-#define DEMO_PROJECT_H
+#ifndef NRC_H
+#define NRC_H
 
 // CS225a
 #include "redis/RedisClient.h"
@@ -15,11 +15,11 @@
 #include <hiredis/hiredis.h>
 #include <model/ModelInterface.h>
 
-class DemoProject {
+class NRC {
 
 public:
 
-	DemoProject(std::shared_ptr<Model::ModelInterface> robot,
+	NRC(std::shared_ptr<Model::ModelInterface> robot,
 		        const std::string &robot_name) :
 		robot(robot),
 		dof(robot->dof()),
@@ -154,4 +154,4 @@ protected:
 	double kv_joint_ = 10;
 };
 
-#endif  // DEMO_PROJECT_H
+#endif  // NRC_H
