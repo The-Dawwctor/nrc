@@ -15,7 +15,6 @@
 #include <Eigen/Core>
 
 struct SimulatorRobot {
-    const std::string kRedisKeyPrefix = "p:";
 	const std::string KEY_INTERACTION_COMMAND_TORQUES;
 	const std::string KEY_COMMAND_TORQUES;
 	const std::string KEY_JOINT_POSITIONS;
@@ -26,11 +25,11 @@ struct SimulatorRobot {
 	const std::string robot_name_;
 
 	SimulatorRobot(std::shared_ptr<Model::ModelInterface> robot, const std::string& robot_name) :
-		KEY_INTERACTION_COMMAND_TORQUES(kRedisKeyPrefix + "actuators::fgc_interact"),
-		KEY_COMMAND_TORQUES            (kRedisKeyPrefix + "actuators::fgc"),
-		KEY_JOINT_POSITIONS            (kRedisKeyPrefix + "sensors::q"),
-		KEY_JOINT_VELOCITIES           (kRedisKeyPrefix + "sensors::dq"),
-		KEY_TIMESTAMP                  (kRedisKeyPrefix + "timestamp"),
+		KEY_INTERACTION_COMMAND_TORQUES("actuators::fgc_interact"),
+		KEY_COMMAND_TORQUES            ("actuators::fgc"),
+		KEY_JOINT_POSITIONS            ("sensors::q"),
+		KEY_JOINT_VELOCITIES           ("sensors::dq"),
+		KEY_TIMESTAMP                  ("timestamp"),
 		robot_(robot),
 		robot_name_(robot_name)
 	{
