@@ -1,17 +1,17 @@
 <?xml version="1.0" ?>
 
-<world name="demo_world" gravity="0.0 0.0 -9.8">
+<world name="nrc_world" gravity="0.0 0.0 -9.8">
 
 	<robot name="kuka_iiwa">
 		<!-- model node is required -->
-		<model dir="resources/demo_project" path="kuka_iiwa.urdf" name="kuka_iiwa" />
+		<model dir="resources/nrc" path="kuka_iiwa.urdf" name="kuka_iiwa" />
 		<!-- origin node is optional -->
 		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	</robot>
 
 	<!-- Red ball for desired end effector position. -->
 	<!-- The ball's position is linked to the Redis key via the visualizer app. -->
-	<static_object name="cs225a::robot::kuka_iiwa::tasks::ee_pos_des">
+	<static_object name="tasks::ee_pos_des">
 		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 		<visual>
 			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />

@@ -25,14 +25,12 @@ static string robot_file = "";
 static string robot_name = "";
 static const string CAMERA_NAME = "camera_fixed";
 
-// redis keys: 
-// NOTE: keys are formatted to be: REDIS_KEY_PREFIX::<robot-name>::<KEY>
-static const string REDIS_KEY_PREFIX = "cs225a::";
+// redis keys:
 // - write:
-static string JOINT_INTERACTION_TORQUES_COMMANDED_KEY = "::actuators::fgc_interact";
+static string JOINT_INTERACTION_TORQUES_COMMANDED_KEY = "actuators::fgc_interact";
 // - read:
-static string JOINT_ANGLES_KEY        = "::sensors::q";
-static string JOINT_VELOCITIES_KEY    = "::sensors::dq";
+static string JOINT_ANGLES_KEY        = "sensors::q";
+static string JOINT_VELOCITIES_KEY    = "sensors::dq";
 
 // function to parse command line arguments
 static void parseCommandline(int argc, char** argv);
@@ -72,8 +70,8 @@ static bool fRobotLinkSelect = false;
 /********** Begin Custom Visualizer Code **********/
 
 // Redis keys (read)
-static string EE_POSITION_KEY         = "::tasks::ee_pos";
-static string EE_POSITION_DESIRED_KEY = "::tasks::ee_pos_des";
+static string EE_POSITION_KEY         = "tasks::ee_pos";
+static string EE_POSITION_DESIRED_KEY = "tasks::ee_pos_des";
 
 // Chai3d graphics names
 // - Created inside visualizer_main.cpp
@@ -207,7 +205,7 @@ int main(int argc, char** argv) {
 	graphics->_world->addChild(x_traj);
 	graphics->_world->addChild(x_des_traj);
 
-	// Retrieve cs225a::<robot_name>::tasks::ee_pos_des sphere marker from world.urdf
+	// Retrieve p:tasks::ee_pos_des sphere marker from world.urdf
 	auto x_des_marker = findObjectInWorld(graphics->_world, EE_POSITION_DESIRED_URDF_NAME);
 
 	/********** End Custom Visualizer Code **********/
@@ -371,23 +369,6 @@ void parseCommandline(int argc, char** argv) {
 	robot_file = string(argv[2]);
 	// argument 3: <robot-name>
 	robot_name = string(argv[3]);
-
-	// Set up Redis keys
-	JOINT_INTERACTION_TORQUES_COMMANDED_KEY = REDIS_KEY_PREFIX + robot_name + JOINT_INTERACTION_TORQUES_COMMANDED_KEY;
-	JOINT_ANGLES_KEY        = REDIS_KEY_PREFIX + robot_name + JOINT_ANGLES_KEY;
-	JOINT_VELOCITIES_KEY    = REDIS_KEY_PREFIX + robot_name + JOINT_VELOCITIES_KEY;
-
-#ifdef ENABLE_TRAJECTORIES
-	/********** Begin Custom Visualizer Code **********/
-
-	EE_POSITION_KEY         = REDIS_KEY_PREFIX + robot_name + EE_POSITION_KEY;
-	EE_POSITION_DESIRED_KEY = REDIS_KEY_PREFIX + robot_name + EE_POSITION_DESIRED_KEY;
-	EE_TRAJECTORY_CHAI_NAME         = REDIS_KEY_PREFIX + robot_name + EE_TRAJECTORY_CHAI_NAME;
-	EE_DESIRED_TRAJECTORY_CHAI_NAME = REDIS_KEY_PREFIX + robot_name + EE_DESIRED_TRAJECTORY_CHAI_NAME;
-	EE_POSITION_DESIRED_URDF_NAME = REDIS_KEY_PREFIX + robot_name + EE_POSITION_DESIRED_URDF_NAME;
-
-	/********** End Custom Visualizer Code **********/
-#endif // ENABLE_TRAJECTORIES
 }
 
 //------------------------------------------------------------------------------
