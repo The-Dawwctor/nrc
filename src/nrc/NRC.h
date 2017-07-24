@@ -18,6 +18,8 @@
 class NRC {
 
 public:
+    // Scaling factor from web client values to redis server
+    const double SCALING = 0.1;
 
 	NRC(std::shared_ptr<Model::ModelInterface> robot,
 		        const std::string &robot_name) :
@@ -146,6 +148,9 @@ protected:
 	Eigen::Vector3d x_, dx_;
 	Eigen::VectorXd q_des_, dq_des_;
 	Eigen::Vector3d x_des_, dx_des_;
+
+    // Obstacle Avoidance
+    std::set<Eigen::Vector3d> obstacles;
 
 	// Default gains (used only when keys are nonexistent in Redis)
 	double kp_pos_ = 40;

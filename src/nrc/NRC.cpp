@@ -36,23 +36,33 @@ void NRC::readRedisValues() {
 	kp_joint_ = stoi(redis_.get(KEY_KP_JOINT));
 	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
 
-    // Read in desired end effector position from points in Redis
-    keyPointPosition = "p:" + to_string(id) + ":position";
-    x_des_ = redis_.getEigenMatrix(keyPointPosition);
+    // add highest id to redis server in RobotWorld
+    // loop over all id's until highest id, checking using redis_.command
+    // whether they actually exist within the point set.
+    // Create key "p:" + to_string(id) + ":name" and check for
+    // goals & obstacles, giving us set of obstacles to avoid.
+    int highestID = stoi(redis_.get("highestID"));
+    for (int i = 0; i < highestID; i++) {
+        string keyPoint = "p:" + to_string(id) + ":";
+        
+        // Read in desired end effector position from points in Redis
+        keyPointPosition = keyPoint + "position";
+        x_des_ = SCALING * redis_.getEigenMatrix(keyPointPosition);
+    }
 
 	// Read frames from OptiTrackClient
-	if (!optitrack_.getFrame()) return;
+    if (!optitrack_.getFrame()) return;
 
-	cout << "Timestamp: " << optitrack_.frameTime() << endl;
-	cout << "Rigid body positions:" << endl;
-	for (auto& pos : optitrack_.pos_rigid_bodies_) {
-		cout << '\t' << pos.transpose() << endl;
-	}
-	cout << "Marker positions:" << endl;
-	for (auto& pos : optitrack_.pos_single_markers_) {
-		cout << '\t' << pos.transpose() << endl;
-	}
-	cout << endl;
+    cout << "Timestamp: " << optitrack_.frameTime() << endl;
+    cout << "Rigid body positions:" << endl;
+    for (auto& pos : optitrack_.pos_rigid_bodies_) {
+        cout << '\t' << pos.transpose() << endl;
+    }
+    cout << "Marker positions:" << endl;
+    for (auto& pos : optitrack_.pos_single_markers_) {
+        cout << '\t' << pos.transpose() << endl;
+    }
+    cout << endl;
 }
 
 /**
@@ -197,45 +207,45 @@ void NRC::runLoop() {
 		switch (controller_state_) {
 			// Wait until valid sensor values have been published to Redis
 			case REDIS_SYNCHRONIZATION:
-				if (isnan(robot->_q)) continue;
-				cout << "Redis synchronized. Switching to joint space controller." << endl;
-				controller_state_ = JOINT_SPACE_INITIALIZATION;
-				break;
+            if (isnan(robot->_q)) continue;
+            cout << "Redis synchronized. Switching to joint space controller." << endl;
+            controller_state_ = JOINT_SPACE_INITIALIZATION;
+            break;
 
 			// Initialize robot to default joint configuration
-			case JOINT_SPACE_INITIALIZATION:
-				if (computeJointSpaceControlTorques() == FINISHED) {
-					cout << "Joint position initialized. Switching to operational space controller." << endl;
-					controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-				};
-				break;
+            case JOINT_SPACE_INITIALIZATION:
+            if (computeJointSpaceControlTorques() == FINISHED) {
+               cout << "Joint position initialized. Switching to operational space controller." << endl;
+               controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
+           };
+           break;
 
 			// Control end effector to desired position
-			case OP_SPACE_POSITION_CONTROL:
-				computeOperationalSpaceControlTorques();
-				break;
+           case OP_SPACE_POSITION_CONTROL:
+           computeOperationalSpaceControlTorques();
+           break;
 
 			// Invalid state. Zero torques and exit program.
-			default:
-				cout << "Invalid controller state. Stopping controller." << endl;
-				g_runloop = false;
-				command_torques_.setZero();
-				break;
-		}
+           default:
+           cout << "Invalid controller state. Stopping controller." << endl;
+           g_runloop = false;
+           command_torques_.setZero();
+           break;
+       }
 
 		// Check command torques before sending them
-		if (isnan(command_torques_)) {
-			cout << "NaN command torques. Sending zero torques to robot." << endl;
-			command_torques_.setZero();
-		}
+       if (isnan(command_torques_)) {
+         cout << "NaN command torques. Sending zero torques to robot." << endl;
+         command_torques_.setZero();
+     }
 
 		// Send command torques
-		writeRedisValues();
-	}
+     writeRedisValues();
+ }
 
 	// Zero out torques before quitting
-	command_torques_.setZero();
-	redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+ command_torques_.setZero();
+ redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 int main(int argc, char** argv) {
