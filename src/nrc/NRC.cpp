@@ -36,8 +36,9 @@ void NRC::readRedisValues() {
 	kp_joint_ = stoi(redis_.get(KEY_KP_JOINT));
 	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
 
-    // Read in current desired end effector position from Redis
-    x_des_ = redis_.getEigenMatrix(KEY_EE_POS_DES);
+    // Read in desired end effector position from points in Redis
+    keyPointPosition = "p:" + to_string(id) + ":position";
+    x_des_ = redis_.getEigenMatrix(keyPointPosition);
 
 	// Read frames from OptiTrackClient
 	if (!optitrack_.getFrame()) return;

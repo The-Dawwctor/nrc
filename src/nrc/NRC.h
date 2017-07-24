@@ -107,7 +107,7 @@ protected:
 	const std::string KEY_KP_JOINT;
 	const std::string KEY_KV_JOINT;
     // - read point info:
-    int id = 0; // id of current goal point in redis
+    int id = 1; // id of current goal point in redis
     std::string keyPointPosition;
 
 	/***** Member functions *****/
