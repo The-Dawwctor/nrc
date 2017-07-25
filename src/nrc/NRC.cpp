@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include <signal.h>
+
 static volatile bool g_runloop = true;
 void stop(int) { g_runloop = false; }
 
@@ -37,18 +38,35 @@ void NRC::readRedisValues() {
 	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
 
     int highestID = stoi(redis_.get("highestID"));
-    for (id = 0; id <= highestID; id++) {
-        string keyPoint = "p:" + to_string(id);
-        
-        // Read in desired end effector position from points in Redis
-        keyPointPosition = keyPoint + ":position";
+    obstacles.clear();
 
-        // check for goals & obstacles if they exist, giving us set of points to avoid
-        auto reply = redis_.command("SISMEMBER %s %s", POINT_SET, keyPoint);
-        if (reply->integer == 1) {
-            x_des_ = SCALING * redis_.getEigenMatrix(keyPointPosition);
+    // Loop through all points
+    for (int id = 0; id <= highestID; id++) {
+        // Read in desired end effector position from points in Redis
+        string keyPoint = "p:" + to_string(id);
+        string keyPointPosition = keyPoint + ":position";
+
+        // Check for goals & obstacles if they exist, giving us set of points to avoid
+        auto reply = redis_.command("SISMEMBER %s %s", POINT_SET.c_str(), keyPoint.c_str());
+
+        // Only consider points that are currently in the world (since points can be removed)
+        if (reply->integer == EXISTS) {
+            string keyPointName = keyPoint + ":name";
+
+            // Only consider goal points and obstacles
+            if (redis_.get(keyPointName) == "PEPoint") {
+                string keyPointAttract = keyPoint + ":attract";
+                Eigen::Vector3d position = redis_.getEigenMatrix(keyPointPosition);
+
+                // Set goal position or add to obstacles depending on attract state
+                if (redis_.get(keyPointAttract) == "true") {
+                    x_des_ = SCALING * position;
+                } else {
+                    obstacles.insert(position);
+                }
+            }
         }
-	}
+    }
 
 	// Read frames from OptiTrackClient
     if (!optitrack_.getFrame()) return;
@@ -215,37 +233,37 @@ void NRC::runLoop() {
 			// Initialize robot to default joint configuration
             case JOINT_SPACE_INITIALIZATION:
             if (computeJointSpaceControlTorques() == FINISHED) {
-               cout << "Joint position initialized. Switching to operational space controller." << endl;
-               controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-           };
-           break;
+             cout << "Joint position initialized. Switching to operational space controller." << endl;
+             controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
+         };
+         break;
 
 			// Control end effector to desired position
-           case OP_SPACE_POSITION_CONTROL:
-           computeOperationalSpaceControlTorques();
-           break;
+         case OP_SPACE_POSITION_CONTROL:
+         computeOperationalSpaceControlTorques();
+         break;
 
 			// Invalid state. Zero torques and exit program.
-           default:
-           cout << "Invalid controller state. Stopping controller." << endl;
-           g_runloop = false;
-           command_torques_.setZero();
-           break;
-       }
-
-		// Check command torques before sending them
-       if (isnan(command_torques_)) {
-         cout << "NaN command torques. Sending zero torques to robot." << endl;
+         default:
+         cout << "Invalid controller state. Stopping controller." << endl;
+         g_runloop = false;
          command_torques_.setZero();
+         break;
      }
 
+		// Check command torques before sending them
+     if (isnan(command_torques_)) {
+       cout << "NaN command torques. Sending zero torques to robot." << endl;
+       command_torques_.setZero();
+   }
+
 		// Send command torques
-     writeRedisValues();
- }
+   writeRedisValues();
+}
 
 	// Zero out torques before quitting
- command_torques_.setZero();
- redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+command_torques_.setZero();
+redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 int main(int argc, char** argv) {
