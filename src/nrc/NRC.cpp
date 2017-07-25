@@ -36,19 +36,19 @@ void NRC::readRedisValues() {
 	kp_joint_ = stoi(redis_.get(KEY_KP_JOINT));
 	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
 
-    // add highest id to redis server in RobotWorld
-    // loop over all id's until highest id, checking using redis_.command
-    // whether they actually exist within the point set.
-    // Create key "p:" + to_string(id) + ":name" and check for
-    // goals & obstacles, giving us set of obstacles to avoid.
     int highestID = stoi(redis_.get("highestID"));
-    for (int i = 0; i < highestID; i++) {
-        string keyPoint = "p:" + to_string(id) + ":";
+    for (id = 0; id <= highestID; id++) {
+        string keyPoint = "p:" + to_string(id);
         
         // Read in desired end effector position from points in Redis
-        keyPointPosition = keyPoint + "position";
-        x_des_ = SCALING * redis_.getEigenMatrix(keyPointPosition);
-    }
+        keyPointPosition = keyPoint + ":position";
+
+        // check for goals & obstacles if they exist, giving us set of points to avoid
+        auto reply = redis_.command("SISMEMBER %s %s", POINT_SET, keyPoint);
+        if (reply->integer == 1) {
+            x_des_ = SCALING * redis_.getEigenMatrix(keyPointPosition);
+        }
+	}
 
 	// Read frames from OptiTrackClient
     if (!optitrack_.getFrame()) return;
