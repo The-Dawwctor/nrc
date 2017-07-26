@@ -105,6 +105,9 @@ void NRC::writeRedisValues() {
 	redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 
     // Send obstacle positions
+    if (obstacles.empty()) {
+        redis_.setEigenMatrix(KEY_OBS_POS, Eigen::Vector3d::Zero());
+    }
     for (auto vec : obstacles) {
         redis_.setEigenMatrix(KEY_OBS_POS, vec);
     }
@@ -166,14 +169,12 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
 	Eigen::Vector3d ddx = -kv_pos_ * dx_err;
 
     // Calculate produced forces from obstacle avoidance through potential fields
-    Eigen::Vector3d ddx_obs;
-    ddx_obs << 0, 0, 0;
+    Eigen::Vector3d ddx_obs = Eigen::Vector3d::Zero();
     for (auto vec : obstacles) {
         Eigen::Vector3d obs_err = vec - x_;
         if (obs_err.norm() > AVOID_THRESHOLD) continue;
-
-        // Change ratio so that it pushes less the farther away you are, instead of pushing more
-        Eigen::Vector3d dx_obs_des_ = -(kp_pos_ / kv_pos_) * obs_err;
+        
+        Eigen::Vector3d dx_obs_des_ = -(10 * kv_pos_ / kp_pos_) * obs_err;
         double v = kMaxVelocity / dx_obs_des_.norm();
         if (v > 1) v = 1;
         Eigen::Vector3d dx_obs_err = dx_ - v * dx_obs_des_;
@@ -259,37 +260,37 @@ void NRC::runLoop() {
 			// Initialize robot to default joint configuration
             case JOINT_SPACE_INITIALIZATION:
             if (computeJointSpaceControlTorques() == FINISHED) {
-             cout << "Joint position initialized. Switching to operational space controller." << endl;
-             controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-         };
-         break;
+               cout << "Joint position initialized. Switching to operational space controller." << endl;
+               controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
+           };
+           break;
 
 			// Control end effector to desired position
-         case OP_SPACE_POSITION_CONTROL:
-         computeOperationalSpaceControlTorques();
-         break;
+           case OP_SPACE_POSITION_CONTROL:
+           computeOperationalSpaceControlTorques();
+           break;
 
 			// Invalid state. Zero torques and exit program.
-         default:
-         cout << "Invalid controller state. Stopping controller." << endl;
-         g_runloop = false;
-         command_torques_.setZero();
-         break;
-     }
+           default:
+           cout << "Invalid controller state. Stopping controller." << endl;
+           g_runloop = false;
+           command_torques_.setZero();
+           break;
+       }
 
 		// Check command torques before sending them
-     if (isnan(command_torques_)) {
-       cout << "NaN command torques. Sending zero torques to robot." << endl;
-       command_torques_.setZero();
-   }
+       if (isnan(command_torques_)) {
+         cout << "NaN command torques. Sending zero torques to robot." << endl;
+         command_torques_.setZero();
+     }
 
 		// Send command torques
-   writeRedisValues();
-}
+     writeRedisValues();
+ }
 
 	// Zero out torques before quitting
-command_torques_.setZero();
-redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+ command_torques_.setZero();
+ redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 int main(int argc, char** argv) {
