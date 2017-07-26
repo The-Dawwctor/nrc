@@ -44,23 +44,22 @@ void NRC::readRedisValues() {
     for (int id = 0; id <= highestID; id++) {
         // Read in desired end effector position from points in Redis
         string keyPoint = "p:" + to_string(id);
-        string keyPointPosition = keyPoint + ":position";
 
-        // Check for goals & obstacles if they exist, giving us set of points to avoid
-        auto reply = redis_.command("SISMEMBER %s %s", POINT_SET.c_str(), keyPoint.c_str());
+        // Check for goals & obstacles from existing points
+        auto replyPoints = redis_.command("SISMEMBER points %s", keyPoint.c_str());
 
-        // Only consider points that are currently in the world (since points can be removed)
-        if (reply->integer == EXISTS) {
-            string keyPointName = keyPoint + ":name";
-
+        // Only consider points currently in world (since removal is legal)
+        if (replyPoints->integer == EXISTS) {
             // Only consider goal points and obstacles
-            if (redis_.get(keyPointName) == "PEPoint") {
-                string keyPointAttract = keyPoint + ":attract";
-                Eigen::Vector3d position = redis_.getEigenMatrix(keyPointPosition);
+            auto replyName = redis_.command("HGET %s name", keyPoint.c_str());
+            if (string(replyName->str) == "PEPoint") {
+                string keyPointPosition = keyPoint + ":position";
+                Eigen::Vector3d position = SCALING * redis_.getEigenMatrix(keyPointPosition);
 
-                // Set goal position or add to obstacles depending on attract state
-                if (redis_.get(keyPointAttract) == "true") {
-                    x_des_ = SCALING * position;
+                // Set goal position or add to obstacles based off attract state
+                auto replyAttract = redis_.command("HGET %s attract", keyPoint.c_str());
+                if (string(replyAttract->str) == "true") {
+                    x_des_ = position;
                 } else {
                     obstacles.insert(position);
                 }
@@ -154,6 +153,9 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
 	Eigen::Vector3d dx_err = dx_ - v * dx_des_;
 	Eigen::Vector3d ddx = -kv_pos_ * dx_err;
 
+    // TODO: Insert obstacle avoidance calculation code here
+
+
 	// Nullspace posture control and damping
 	Eigen::VectorXd q_err = robot->_q - q_des_;
 	Eigen::VectorXd dq_err = robot->_dq - dq_des_;
@@ -233,37 +235,37 @@ void NRC::runLoop() {
 			// Initialize robot to default joint configuration
             case JOINT_SPACE_INITIALIZATION:
             if (computeJointSpaceControlTorques() == FINISHED) {
-             cout << "Joint position initialized. Switching to operational space controller." << endl;
-             controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-         };
-         break;
+               cout << "Joint position initialized. Switching to operational space controller." << endl;
+               controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
+           };
+           break;
 
 			// Control end effector to desired position
-         case OP_SPACE_POSITION_CONTROL:
-         computeOperationalSpaceControlTorques();
-         break;
+           case OP_SPACE_POSITION_CONTROL:
+           computeOperationalSpaceControlTorques();
+           break;
 
 			// Invalid state. Zero torques and exit program.
-         default:
-         cout << "Invalid controller state. Stopping controller." << endl;
-         g_runloop = false;
-         command_torques_.setZero();
-         break;
-     }
+           default:
+           cout << "Invalid controller state. Stopping controller." << endl;
+           g_runloop = false;
+           command_torques_.setZero();
+           break;
+       }
 
 		// Check command torques before sending them
-     if (isnan(command_torques_)) {
-       cout << "NaN command torques. Sending zero torques to robot." << endl;
-       command_torques_.setZero();
-   }
+       if (isnan(command_torques_)) {
+         cout << "NaN command torques. Sending zero torques to robot." << endl;
+         command_torques_.setZero();
+     }
 
 		// Send command torques
-   writeRedisValues();
-}
+     writeRedisValues();
+ }
 
 	// Zero out torques before quitting
-command_torques_.setZero();
-redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+ command_torques_.setZero();
+ redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 int main(int argc, char** argv) {

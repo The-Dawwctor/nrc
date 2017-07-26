@@ -114,6 +114,7 @@ protected:
 
     // Miscellaneous constants
     const int EXISTS = 1;
+    const double AVOID_THRESHOLD = 0.25;
 
 	/***** Member functions *****/
 
