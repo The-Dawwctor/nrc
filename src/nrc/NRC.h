@@ -37,6 +37,7 @@ public:
     KEY_KV_ORIENTATION  (kRedisKeyPrefix + robot_name + "::tasks::kv_ori"),
     KEY_KP_JOINT        (kRedisKeyPrefix + robot_name + "::tasks::kp_joint"),
     KEY_KV_JOINT        (kRedisKeyPrefix + robot_name + "::tasks::kv_joint"),
+    KEY_OBS_POS         (kRedisKeyPrefix + robot_name + "::tasks::obs_pos"),
     command_torques_(dof),
     Jv_(3, dof),
     N_(dof, dof),
@@ -47,22 +48,22 @@ public:
     controller_state_(REDIS_SYNCHRONIZATION),
     obstacles(vec3dCmp)
     {
-      command_torques_.setZero();
+        command_torques_.setZero();
 
 		// Home configuration for Kuka iiwa
-      q_des_ << 90, -30, 0, 60, 0, -90, -60;
-      q_des_ *= M_PI / 180.0;
-      dq_des_.setZero();
+        q_des_ << 90, -30, 0, 60, 0, -90, -60;
+        q_des_ *= M_PI / 180.0;
+        dq_des_.setZero();
 
 		// Desired end effector position
-      x_des_ << 0.1, 0.4, 0.7;
-      dx_des_.setZero();
-  }
+        x_des_ << 0.1, 0.4, 0.7;
+        dx_des_.setZero();
+    }
 
 	/***** Public functions *****/
 
-  void initialize();
-  void runLoop();
+    void initialize();
+    void runLoop();
 
 protected:
 	/***** Enums *****/
@@ -111,13 +112,16 @@ protected:
     const std::string KEY_KV_JOINT;
     // - read point info:
     const std::string POINT_SET = "points";
+    // - write obstacle info:
+    const std::string KEY_OBS_POS;
 
     // Miscellaneous constants
     const int EXISTS = 1;
-    const double AVOID_THRESHOLD = 0.25;
+    const double AVOID_THRESHOLD = 0.2;
 
 	/***** Member functions *****/
 
+    void readPointValues();
     void readRedisValues();
     void updateModel();
     void writeRedisValues();

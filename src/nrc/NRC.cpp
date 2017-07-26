@@ -17,26 +17,11 @@ static inline bool isnan(const Eigen::MatrixBase<Derived>& x) {
 using namespace std;
 
 /**
- * NRC::readRedisValues()
+ * NRC::readPointValues()
  * ------------------------------
- * Retrieve all read keys from Redis.
+ * Retrieve all point key values from Redis.
  */
-void NRC::readRedisValues() {
-	// Read from Redis current sensor values
-	robot->_q = redis_.getEigenMatrix(KEY_JOINT_POSITIONS);
-	robot->_dq = redis_.getEigenMatrix(KEY_JOINT_VELOCITIES);
-
-	// Get current simulation timestamp from Redis
-	t_curr_ = stod(redis_.get(KEY_TIMESTAMP));
-
-	// Read in KP and KV from Redis (can be changed on the fly in Redis)
-	kp_pos_ = stoi(redis_.get(KEY_KP_POSITION));
-	kv_pos_ = stoi(redis_.get(KEY_KV_POSITION));
-	kp_ori_ = stoi(redis_.get(KEY_KP_ORIENTATION));
-	kv_ori_ = stoi(redis_.get(KEY_KV_ORIENTATION));
-	kp_joint_ = stoi(redis_.get(KEY_KP_JOINT));
-	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
-
+void NRC::readPointValues() {
     int highestID = stoi(redis_.get("highestID"));
     obstacles.clear();
 
@@ -66,6 +51,30 @@ void NRC::readRedisValues() {
             }
         }
     }
+}
+
+/**
+ * NRC::readRedisValues()
+ * ------------------------------
+ * Retrieve all read keys from Redis.
+ */
+void NRC::readRedisValues() {
+	// Read from Redis current sensor values
+	robot->_q = redis_.getEigenMatrix(KEY_JOINT_POSITIONS);
+	robot->_dq = redis_.getEigenMatrix(KEY_JOINT_VELOCITIES);
+
+	// Get current simulation timestamp from Redis
+	t_curr_ = stod(redis_.get(KEY_TIMESTAMP));
+
+	// Read in KP and KV from Redis (can be changed on the fly in Redis)
+	kp_pos_ = stoi(redis_.get(KEY_KP_POSITION));
+	kv_pos_ = stoi(redis_.get(KEY_KV_POSITION));
+	kp_ori_ = stoi(redis_.get(KEY_KP_ORIENTATION));
+	kv_ori_ = stoi(redis_.get(KEY_KV_ORIENTATION));
+	kp_joint_ = stoi(redis_.get(KEY_KP_JOINT));
+	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
+
+    readPointValues();
 
 	// Read frames from OptiTrackClient
     if (!optitrack_.getFrame()) return;
@@ -94,6 +103,11 @@ void NRC::writeRedisValues() {
 
 	// Send torques
 	redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+
+    // Send obstacle positions
+    for (auto vec : obstacles) {
+        redis_.setEigenMatrix(KEY_OBS_POS, vec);
+    }
 }
 
 /**
@@ -145,28 +159,38 @@ NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
 NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
 	// PD position control with velocity saturation
 	Eigen::Vector3d x_err = x_ - x_des_;
-	// Eigen::Vector3d dx_err = dx_ - dx_des_;
-	// Eigen::Vector3d ddx = -kp_pos_ * x_err - kv_pos_ * dx_err_;
 	dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
 	double v = kMaxVelocity / dx_des_.norm();
 	if (v > 1) v = 1;
 	Eigen::Vector3d dx_err = dx_ - v * dx_des_;
 	Eigen::Vector3d ddx = -kv_pos_ * dx_err;
 
-    // TODO: Insert obstacle avoidance calculation code here
+    // Calculate produced forces from obstacle avoidance through potential fields
+    Eigen::Vector3d ddx_obs;
+    ddx_obs << 0, 0, 0;
+    for (auto vec : obstacles) {
+        Eigen::Vector3d obs_err = vec - x_;
+        if (obs_err.norm() > AVOID_THRESHOLD) continue;
 
+        // Change ratio so that it pushes less the farther away you are, instead of pushing more
+        Eigen::Vector3d dx_obs_des_ = -(kp_pos_ / kv_pos_) * obs_err;
+        double v = kMaxVelocity / dx_obs_des_.norm();
+        if (v > 1) v = 1;
+        Eigen::Vector3d dx_obs_err = dx_ - v * dx_obs_des_;
+        ddx_obs += -kv_pos_ * dx_obs_err;
+    }
 
 	// Nullspace posture control and damping
-	Eigen::VectorXd q_err = robot->_q - q_des_;
-	Eigen::VectorXd dq_err = robot->_dq - dq_des_;
-	Eigen::VectorXd ddq = -kp_joint_ * q_err - kv_joint_ * dq_err;
+    Eigen::VectorXd q_err = robot->_q - q_des_;
+    Eigen::VectorXd dq_err = robot->_dq - dq_des_;
+    Eigen::VectorXd ddq = -kp_joint_ * q_err - kv_joint_ * dq_err;
 
 	// Control torques
-	Eigen::Vector3d F_x = Lambda_x_ * ddx;
-	Eigen::VectorXd F_posture = robot->_M * ddq;
-	command_torques_ = Jv_.transpose() * F_x + N_.transpose() * F_posture + g_;
+    Eigen::Vector3d F_x = Lambda_x_ * (ddx + ddx_obs);
+    Eigen::VectorXd F_posture = robot->_M * ddq;
+    command_torques_ = Jv_.transpose() * F_x + N_.transpose() * F_posture + g_;
 
-	return RUNNING;
+    return RUNNING;
 }
 
 /**
@@ -235,37 +259,37 @@ void NRC::runLoop() {
 			// Initialize robot to default joint configuration
             case JOINT_SPACE_INITIALIZATION:
             if (computeJointSpaceControlTorques() == FINISHED) {
-               cout << "Joint position initialized. Switching to operational space controller." << endl;
-               controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-           };
-           break;
+             cout << "Joint position initialized. Switching to operational space controller." << endl;
+             controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
+         };
+         break;
 
 			// Control end effector to desired position
-           case OP_SPACE_POSITION_CONTROL:
-           computeOperationalSpaceControlTorques();
-           break;
+         case OP_SPACE_POSITION_CONTROL:
+         computeOperationalSpaceControlTorques();
+         break;
 
 			// Invalid state. Zero torques and exit program.
-           default:
-           cout << "Invalid controller state. Stopping controller." << endl;
-           g_runloop = false;
-           command_torques_.setZero();
-           break;
-       }
-
-		// Check command torques before sending them
-       if (isnan(command_torques_)) {
-         cout << "NaN command torques. Sending zero torques to robot." << endl;
+         default:
+         cout << "Invalid controller state. Stopping controller." << endl;
+         g_runloop = false;
          command_torques_.setZero();
+         break;
      }
 
+		// Check command torques before sending them
+     if (isnan(command_torques_)) {
+       cout << "NaN command torques. Sending zero torques to robot." << endl;
+       command_torques_.setZero();
+   }
+
 		// Send command torques
-     writeRedisValues();
- }
+   writeRedisValues();
+}
 
 	// Zero out torques before quitting
- command_torques_.setZero();
- redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+command_torques_.setZero();
+redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 int main(int argc, char** argv) {

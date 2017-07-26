@@ -74,6 +74,7 @@ static bool fRobotLinkSelect = false;
 // Redis keys (read)
 static string EE_POSITION_KEY         = "::tasks::ee_pos";
 static string EE_POSITION_DESIRED_KEY = "::tasks::ee_pos_des";
+static string OBS_POS_KEY = "::tasks::obs_pos";
 
 // Chai3d graphics names
 // - Created inside visualizer_main.cpp
@@ -81,6 +82,7 @@ static string EE_TRAJECTORY_CHAI_NAME         = EE_POSITION_KEY + "_traj";
 static string EE_DESIRED_TRAJECTORY_CHAI_NAME = EE_POSITION_DESIRED_KEY + "_traj";
 // - Created inside world.urdf
 static string EE_POSITION_DESIRED_URDF_NAME   = EE_POSITION_DESIRED_KEY;
+static string OBS_POS_URDF_NAME               = OBS_POS_KEY;
 
 // Default number of points in trajectory buffer
 static const int kLenTrajectory = 100;
@@ -194,21 +196,26 @@ int main(int argc, char** argv) {
 	// Set up trajectory tracking variables
 	Eigen::Vector3d x, x_des;            // Current end effector pos
 	Eigen::Vector3d x_prev, x_des_prev;  // Previous end effector pos
+    Eigen::Vector3d obs_pos;             // Current obstacle pos
 	int idx_traj = 0, idx_des_traj = 0;  // Current idx in trajectory buffer
 	x = redis_client.getEigenMatrix(EE_POSITION_KEY);
 	x_des = redis_client.getEigenMatrix(EE_POSITION_DESIRED_KEY);
+    obs_pos = redis_client.getEigenMatrix(OBS_POS_KEY);
 	x_prev = x;
 	x_des_prev = x_des;
 
 	// Create trajectory graphics objects and insert them into the chai3d world
 	auto x_traj = createTrajectory(EE_TRAJECTORY_CHAI_NAME, x);
 	auto x_des_traj = createTrajectory(EE_DESIRED_TRAJECTORY_CHAI_NAME, x_des);
-	x_des_traj->setLineColor(chai3d::cColorf(1.0, 0.0, 0.0, 1.0));  // Red for x_des
+	x_des_traj->setLineColor(chai3d::cColorf(0.0, 1.0, 0.0, 1.0));  // Green for x_des
 	graphics->_world->addChild(x_traj);
 	graphics->_world->addChild(x_des_traj);
 
-	// Retrieve p:tasks::ee_pos_des sphere marker from world.urdf
+	// Retrieve nrc::<robot_name>::tasks::ee_pos_des sphere marker from world.urdf
 	auto x_des_marker = findObjectInWorld(graphics->_world, EE_POSITION_DESIRED_URDF_NAME);
+
+    // Retrieve nrc::<robot_name>::tasks::obs_pos sphere marker from world.urdf
+    auto obs_pos_marker = findObjectInWorld(graphics->_world, OBS_POS_URDF_NAME);
 
 	/********** End Custom Visualizer Code **********/
 #endif // ENABLE_TRAJECTORIES
@@ -225,6 +232,7 @@ int main(int argc, char** argv) {
 
 		x = redis_client.getEigenMatrix(EE_POSITION_KEY);
 		x_des = redis_client.getEigenMatrix(EE_POSITION_DESIRED_KEY);
+        obs_pos = redis_client.getEigenMatrix(OBS_POS_KEY);
 
 		// Update end effector position trajectory
 		if ((x - x_prev).norm() > kTrajectoryMinUpdateDistance) {
@@ -242,6 +250,11 @@ int main(int argc, char** argv) {
 		if (x_des_marker != nullptr) {
 			x_des_marker->setLocalPos(chai3d::cVector3d(x_des));
 		}
+
+        // Update obstacle position marker
+        if (obs_pos_marker != nullptr) {
+            obs_pos_marker->setLocalPos(chai3d::cVector3d(obs_pos));
+        }
 
 		/********** End Custom Visualizer Code **********/
 #endif // ENABLE_TRAJECTORIES
@@ -385,6 +398,8 @@ void parseCommandline(int argc, char** argv) {
     EE_TRAJECTORY_CHAI_NAME         = REDIS_KEY_PREFIX + robot_name + EE_TRAJECTORY_CHAI_NAME;
     EE_DESIRED_TRAJECTORY_CHAI_NAME = REDIS_KEY_PREFIX + robot_name + EE_DESIRED_TRAJECTORY_CHAI_NAME;
     EE_POSITION_DESIRED_URDF_NAME = REDIS_KEY_PREFIX + robot_name + EE_POSITION_DESIRED_URDF_NAME;
+    OBS_POS_KEY = REDIS_KEY_PREFIX + robot_name + OBS_POS_KEY;
+    OBS_POS_URDF_NAME = REDIS_KEY_PREFIX + robot_name + OBS_POS_URDF_NAME;
 
     /********** End Custom Visualizer Code **********/
 #endif // ENABLE_TRAJECTORIES
