@@ -18,9 +18,6 @@
 class NRC {
 
 public:
-    // Scaling factor from web client values to redis server
-    const double SCALING = 0.1;
-
     NRC(std::shared_ptr<Model::ModelInterface> robot,
       const std::string &robot_name) :
     robot(robot),
@@ -45,8 +42,7 @@ public:
     g_(dof),
     q_des_(dof),
     dq_des_(dof),
-    controller_state_(REDIS_SYNCHRONIZATION),
-    obstacles(vec3dCmp)
+    controller_state_(REDIS_SYNCHRONIZATION)
     {
         command_torques_.setZero();
 
@@ -110,13 +106,10 @@ protected:
     const std::string KEY_KV_ORIENTATION;
     const std::string KEY_KP_JOINT;
     const std::string KEY_KV_JOINT;
-    // - read point info:
-    const std::string POINT_SET = "points";
     // - write obstacle info:
     const std::string KEY_OBS_POS;
 
     // Miscellaneous constants
-    const int EXISTS = 1;
     const double AVOID_THRESHOLD = 0.2;
 
 	/***** Member functions *****/
@@ -156,17 +149,6 @@ protected:
     Eigen::Vector3d x_, dx_;
     Eigen::VectorXd q_des_, dq_des_;
     Eigen::Vector3d x_des_, dx_des_;
-
-    // Obstacle Avoidance
-    /***** Eigen Vector3d Comparison Function *****/
-    static bool vec3dCmp(Eigen::Vector3d a, Eigen::Vector3d b) {
-        for (int i = 0; i < 3; i++) {
-            if (a(i) < b(i)) return true;
-            if (a(i) > b(i)) return false;
-        }
-        return false;
-    }
-    std::set<Eigen::Vector3d, bool(*)(Eigen::Vector3d, Eigen::Vector3d)> obstacles;
 
 	// Default gains (used only when keys are nonexistent in Redis)
     double kp_pos_ = 40;
