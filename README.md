@@ -1,24 +1,27 @@
-# cs225a
-Repository for class resources: CS225a experimental robotics
+# NRC
+Repository for Natural Robot Control
+(Based off of devel branch of cs225a git repository: https://github.com/tmigimatsu/cs225a-dist.git)
 
-## Automatic Installation Instructions (for Ubuntu and Mac only)
+## Complete Installation Instructions
+
+## NRC Automatic Installation Instructions (for Ubuntu and Mac only)
 1. If you have a Mac, install Brew (https://brew.sh/). If you have Ubuntu, install git (sudo apt install git)
 
 2. Clone this repository
 
-   ```git clone https://github.com/tmigimatsu/cs225a-dist.git cs225a.git```
+   ```git clone https://github.com/The-Dawwctor/nrc.git nrc.git```
 
-3. Download sai2-simulation.zip from AFS and extract its contents into cs225a.git/sai2-simulation.
+3. Download sai2-simulation.zip from AFS and extract its contents into nrc.git/sai2-simulation.
 
-4. Run the install script inside cs225a.git. This will take a few minutes.
+4. Run the install script inside nrc.git. This will take a few minutes.
 
    ```sh install.sh```
 
-5. Build the cs225a applications
+5. Build the nrc applications
 
    ```sh make.sh```
 
-## Manual Installation Instructions (for any Linux distro or Mac)
+## NRC Manual Installation Instructions (for any Linux distro or Mac)
 1. Install Brew for Mac (https://brew.sh/) or have Ubuntu installed or any other distro with the following packages. Also install git (sudo apt-get install git). Windows will have to dualboot ubuntu or install a VM.
 
 2. Install Cmake
@@ -126,15 +129,26 @@ Repository for class resources: CS225a experimental robotics
     sh make.sh
     ```
 
+## SEMPRE-robot Installation
+    Follow the instructions [here](https://github.com/The-Dawwctor/sempre-robot).
+
+## SHRDLURN-robot Installation
+    Follow the instructions [here](https://github.com/The-Dawwctor/shrdlurn-robot).
+
 ## Post-Installation
 
-1. Inside bin, you will find visualizer, simulator, and hw0
+1. Inside bin, you will find visualizer, simulator, and nrc0
    ```
-   ./hw0 &
+   ./nrc &
    ./visualizer &
    ```
    Note this opens up the applications in the background, use "jobs" to see currently running jobs and "fg" or "bg" to foreground next job or background next job
    
-1.5 You can also run the script inside the bin folder "run_hw0.sh" to run hw0. Ctrl-c on the shell to quit.
+   In order to run the nrc program, have 3 separate terminals open and start, in this order:
+   ```
+   ./simulator resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
+   ./nrc resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
+   ./visualizer resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
+   ```
    
 2. Read the source code of hw0 inside src/hw0/hw0.cpp and the URDF file src/RRPbot.urdf and src/world.urdf to understand what is happening inside the robot code and how the simple robot is described both kinematically and graphically.

@@ -27,7 +27,7 @@ def main():
                 if "PEPoint" in point[0]:
                     # Scaling factor from web client values to robot controller
                     SCALING = 0.1
-                    position = (SCALING * point[2], SCALING * point[3], SCALING * point[4])
+                    position = [SCALING * point[2], SCALING * point[3], SCALING * point[4]]
 
                     # Set goal position or add to obstacles based off attract state
                     if (point[7]):
