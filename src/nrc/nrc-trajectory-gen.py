@@ -15,7 +15,7 @@ def main():
     for message in pSub.listen():
         if message["type"] == "message":
             decode = json.loads(message["data"])
-            decode.sort(key = lambda x : int(x[1]))
+            decode.sort(key = lambda x : int(x[1])) # sorts points by id
 
             # CLear list of goals and obstacles for each new message
             goals = []
@@ -36,7 +36,8 @@ def main():
                         obstacles.append(position)
 
         # Publishes goals to robot controller
-        result = "goals:" + str(goals) + ";obstacles:" + str(obstacles)
+        result = "goals " + str(goals) + " obstacles " + str(obstacles)
+        rPub.set("nrc-trajectory", result)
         # rPub.publish("nrc-trajectory", result)
 
     pSub.close()

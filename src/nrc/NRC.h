@@ -13,6 +13,7 @@
 // External
 #include <Eigen/Core>
 #include <hiredis/hiredis.h>
+#include <hiredis/async.h>
 #include <model/ModelInterface.h>
 
 class NRC {
@@ -114,7 +115,6 @@ protected:
 
 	/***** Member functions *****/
 
-    void readPointValues();
     void readRedisValues();
     void updateModel();
     void writeRedisValues();
@@ -128,6 +128,7 @@ protected:
 
 	// Redis
     RedisClient redis_;
+    redisAsyncContext* sub_;
 
 	// Timer
     LoopTimer timer_;
