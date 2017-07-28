@@ -130,14 +130,35 @@ Repository for Natural Robot Control
     ```
 
 ## SEMPRE-robot Installation
-    Follow the instructions [here](https://github.com/The-Dawwctor/sempre-robot).
+    Follow the instructions at (https://github.com/The-Dawwctor/sempre-robot)
 
 ## SHRDLURN-robot Installation
-    Follow the instructions [here](https://github.com/The-Dawwctor/shrdlurn-robot).
+    Follow the instructions at (https://github.com/The-Dawwctor/shrdlurn-robot)
 
 ## Post-Installation
+1. To run the SEMPRE-robot server, while in the SEMPRE-robot git repository, run
+    ```
+    ant interactive
+    ./interactive/run @mode=robot -server -interactive
+    ```
+    and keep it running in a separate terminal.
 
-1. Inside bin, you will find visualizer, simulator, and nrc0
+2. To run the SHRDLURN-robot client, while in the SHRDLURN-robot git repository, run
+    ```
+    yarn start
+    ```
+    to open a localhost website.
+
+    Alternatively, type
+    ```
+    yarn build
+    yarn deploy
+    ```
+    and go to the website (the-dawwctor.github.io/shrdlurn-robot/) to see the web client.
+
+    The website can be changed through the instructions on the SHRDLURN-robot git repository.
+
+3. Inside bin of the nrc git repository, you will find visualizer, simulator, and nrc
    ```
    ./nrc &
    ./visualizer &
@@ -151,4 +172,4 @@ Repository for Natural Robot Control
    ./visualizer resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
    ```
    
-2. Read the source code of hw0 inside src/hw0/hw0.cpp and the URDF file src/RRPbot.urdf and src/world.urdf to understand what is happening inside the robot code and how the simple robot is described both kinematically and graphically.
+4. Read the source code of NRC inside src/nrc/NRC.cpp and the URDF file src/nrc/kuka_iiwa.urdf and src/nrc/world.urdf to understand what is happening inside the robot code and how the robot is described both kinematically and graphically.
