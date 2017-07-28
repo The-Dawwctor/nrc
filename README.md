@@ -130,10 +130,10 @@ Repository for Natural Robot Control
     ```
 
 ## SEMPRE-robot Installation
-    Follow the instructions at (https://github.com/The-Dawwctor/sempre-robot)
+Follow the instructions at https://github.com/The-Dawwctor/sempre-robot
 
 ## SHRDLURN-robot Installation
-    Follow the instructions at (https://github.com/The-Dawwctor/shrdlurn-robot)
+Follow the instructions at https://github.com/The-Dawwctor/shrdlurn-robot
 
 ## Post-Installation
 1. To run the SEMPRE-robot server, while in the SEMPRE-robot git repository, run
@@ -154,7 +154,7 @@ Repository for Natural Robot Control
     yarn build
     yarn deploy
     ```
-    and go to the website (the-dawwctor.github.io/shrdlurn-robot/) to see the web client.
+    and go to the website https://the-dawwctor.github.io/shrdlurn-robot/ to see the web client.
 
     The website can be changed through the instructions on the SHRDLURN-robot git repository.
 
