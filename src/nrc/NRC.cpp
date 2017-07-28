@@ -28,7 +28,7 @@ void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
 
     if (r->type == REDIS_REPLY_ARRAY) {
         for (int i = 0; i < r->elements; i++) {
-            cout << i << ") " << r->element[i]->str << flush << endl;
+           cout << i << ") " << r->element[i]->str << flush << endl;
         }
     }
 }
@@ -173,9 +173,7 @@ void NRC::initialize() {
         cout << "Error: " << sub_->errstr << endl;
         exit(1);
     }
-    redisAsyncCommand(sub_, readPointValues, NULL, "GET nrc-trajectory");
-    redisAsyncHandleWrite(sub_);
-    redisAsyncHandleRead(sub_);
+    redisAsyncCommand(sub_, readPointValues, NULL, "SUBSCRIBE nrc-trajectory");
 
 	// Set up optitrack
 	// optitrack_.openConnection("123.45.67.89");

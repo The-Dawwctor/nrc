@@ -37,8 +37,7 @@ def main():
 
         # Publishes goals to robot controller
         result = "goals " + str(goals) + " obstacles " + str(obstacles)
-        rPub.set("nrc-trajectory", result)
-        # rPub.publish("nrc-trajectory", result)
+        rPub.publish("nrc-trajectory", result)
 
     pSub.close()
 
