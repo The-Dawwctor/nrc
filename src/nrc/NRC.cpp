@@ -27,6 +27,12 @@ void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
 
     if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
         cout << r->element[2]->str << endl;
+        // Push to redis since asynchronous can't communicate with synchronous
+        RedisClient update_;
+        update_.connect("127.0.0.1", 6379);
+
+        update_.set("updateFlag", "true");
+        update_.set("trajectory", r->element[2]->str);
     }
 }
 
@@ -127,6 +133,10 @@ NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
  * Controller to move end effector to desired position.
  */
 NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
+    if (redis_.get("updateFlag") == "true") {
+        return FINISHED;
+    }
+
 	// PD position control with velocity saturation
 	Eigen::Vector3d x_err = x_ - x_des_;
 	dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
@@ -146,6 +156,20 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
     command_torques_ = Jv_.transpose() * F_x + N_.transpose() * F_posture + g_;
 
     return RUNNING;
+}
+
+/**
+ * NRC::setOperationalSpaceGoals()
+ * ----------------------------------------------
+ * Sets operational space goals whenever new information received from redis subscription.
+ */
+NRC::ControllerStatus NRC::setOperationalSpaceGoals() {
+    // Stop the robot upon updating for safety
+    command_torques_.setZero();
+    redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+    redis_.set("updateFlag", "false");
+    
+    return FINISHED;
 }
 
 /**
@@ -226,13 +250,23 @@ void NRC::runLoop() {
             case JOINT_SPACE_INITIALIZATION:
             if (computeJointSpaceControlTorques() == FINISHED) {
                 cout << "Joint position initialized. Switching to operational space controller." << endl;
-                controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-            };
+                controller_state_ = OP_SPACE_POSITION_CONTROL;
+            }
             break;
 
 			// Control end effector to desired position
             case OP_SPACE_POSITION_CONTROL:
-            computeOperationalSpaceControlTorques();
+            if (computeOperationalSpaceControlTorques() == FINISHED) {
+                cout << "Changing goals. Switching to operational space goal setter." << endl;
+                controller_state_ = OP_SPACE_GOAL_SET;
+            }
+            break;
+
+            case OP_SPACE_GOAL_SET:
+            if (setOperationalSpaceGoals() == FINISHED) {
+                cout << "Goals set. Switching to operational space controller." << endl;
+                controller_state_ = OP_SPACE_POSITION_CONTROL;
+            }
             break;
 
 			// Invalid state. Zero torques and exit program.

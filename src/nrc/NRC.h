@@ -69,7 +69,8 @@ protected:
 	enum ControllerState {
 		REDIS_SYNCHRONIZATION,
 		JOINT_SPACE_INITIALIZATION,
-		OP_SPACE_POSITION_CONTROL
+		OP_SPACE_POSITION_CONTROL,
+        OP_SPACE_GOAL_SET
 	};
 
 	// Return values from computeControlTorques() methods
@@ -120,6 +121,7 @@ protected:
     void writeRedisValues();
     ControllerStatus computeJointSpaceControlTorques();
     ControllerStatus computeOperationalSpaceControlTorques();
+    ControllerStatus setOperationalSpaceGoals();
 
 	/***** Member variables *****/
 
