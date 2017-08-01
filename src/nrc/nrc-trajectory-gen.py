@@ -6,16 +6,18 @@ import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-def bezierCurve(s_p, s_n, b_p, b_n, t):
-    prevDiv = (2./3) * b_p + (1./3) * b_n
-    nextDiv = (1./3) * b_p + (2./3) * b_n
-    return ((1 - t) ** 3 * s_p + 3 * (1 - t) ** 2 * t * prevDiv
-        + 3 * (1 - t) * t ** 2 * nextDiv + t ** 3 * s_n)
+def bezierCurve(goals, b, n):
+    interp = []
+    for i in xrange(n - 1):
+        for t in [x/10.0 for x in xrange(10)]:
+            prevDiv = (2./3) * b[i] + (1./3) * b[i+1]
+            nextDiv = (1./3) * b[i] + (2./3) * b[i+1]
+            interp.append((1 - t) ** 3 * goals[i] + 3 * (1 - t) ** 2 * t * prevDiv
+                + 3 * (1 - t) * t ** 2 * nextDiv + t ** 3 * goals[i+1])
+    interp.append(goals[-1])
+    return interp
 
 def main():
-    goals = list()
-    obstacles = list()
-
     rPub = redis.StrictRedis(host='localhost', port=6379, db=0)
     rSub = redis.StrictRedis(host='localhost', port=6379, db=1)
     pSub = rSub.pubsub()
@@ -27,8 +29,11 @@ def main():
             decode = json.loads(message["data"])
             decode.sort(key = lambda x : int(x[1])) # sorts points by id
 
-            # CLear list of goals and obstacles for each new message
-            goals = []
+            # Refresh list of goals and obstacles for each new message
+            eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
+            startPos = [float(x) for x in rPub.get(eeKey).split()] if rPub.exists(eeKey) \
+                                                                    else [0, 0, 0]
+            goals = [startPos]
             obstacles = []
 
             # Loop through all points
@@ -45,39 +50,29 @@ def main():
                     else:
                         obstacles.append(position)
 
-            # Perform natural cubic spline interpolation
             # Initialize clamped spline (A) & interpolated points (s) matrix
             n = len(goals)
-            A = np.empty([n, n])
-            s = np.empty([n, 3])
-            
+            A = np.zeros([n, n])
+            goals = np.array(goals)
+            s = 3 * goals[:]
+
             # Calculate matrices
             for i in range(n):
-                edge = i == 0 or i == n-1
-                for j in range(n):
-                    if i == j:
-                        A[i][j] = 2 if edge else 4
-                    elif abs(i - j) == 1:
-                        A[i][j] = 1
-                    else:
-                        A[i][j] = 0
+                if i != n-1:
+                    A[i][i] += 2
+                    A[i][i+1] += 1
+                    A[i+1][i] += 1
+                    A[i+1][i+1] += 2
                 
-                if edge:
-                    s[i] = [3 * x for x in goals[i]]
-                else:
-                    s[i] = [6 * x for x in goals[i]]
+                    if i != 0:
+                        s[i] *= 2
 
             b = sl.solve(A, s, True, False, True, True)
 
             # Manually calculate all bezier curve points
-            goals = np.array(goals)
-            interp = []
-            for i in xrange(n - 1):
-                for j in xrange(10):
-                    interp.append(bezierCurve(goals[i], goals[i+1], b[i], b[i+1], j/10.0))
-            interp.append(goals[-1])
+            interp = bezierCurve(goals, b, n)
 
-            # Spline smoothness verification
+            # Spline smoothness verification graph
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
             interp = np.array(interp)
