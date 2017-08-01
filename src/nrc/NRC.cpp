@@ -81,6 +81,7 @@ void NRC::writeRedisValues() {
 	// Send end effector position and desired position
 	redis_.setEigenMatrix(KEY_EE_POS, x_);
 	redis_.setEigenMatrix(KEY_EE_POS_DES, x_des_);
+    redis_.setEigenMatrix(KEY_OBS_POS, Eigen::Vector3d::Zero());
 
 	// Send torques
 	redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
