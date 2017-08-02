@@ -26,11 +26,9 @@ void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
     redisReply* r = (redisReply*)reply;
 
     if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
-        cout << r->element[2]->str << endl;
         // Push to redis since asynchronous can't communicate with synchronous
         RedisClient update_;
         update_.connect("127.0.0.1", 6379);
-
         update_.set("updateFlag", "true");
         update_.set("trajectory", r->element[2]->str);
     }
@@ -84,7 +82,7 @@ void NRC::writeRedisValues() {
     redis_.setEigenMatrix(KEY_OBS_POS, Eigen::Vector3d::Zero());
 
 	// Send torques
-	redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+    redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 /**
@@ -134,17 +132,21 @@ NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
  * Controller to move end effector to desired position.
  */
 NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
-    if (redis_.get("updateFlag") == "true") {
-        return FINISHED;
-    }
+    if (redis_.get("updateFlag") == "true") return FINISHED;
 
 	// PD position control with velocity saturation
-	Eigen::Vector3d x_err = x_ - x_des_;
-	dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
-	double v = kMaxVelocity / dx_des_.norm();
-	if (v > 1) v = 1;
-	Eigen::Vector3d dx_err = dx_ - v * dx_des_;
-	Eigen::Vector3d ddx = -kv_pos_ * dx_err;
+    Eigen::Vector3d x_err = x_ - x_des_;
+    dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
+    double v = kMaxVelocity / dx_des_.norm();
+    if (v > 1) v = 1;
+    Eigen::Vector3d dx_err = dx_ - v * dx_des_;
+    Eigen::Vector3d ddx = -kv_pos_ * dx_err;
+
+    // Reached desired goal position and velocity; need next goal
+    if (!completed && x_err.norm() < kToleranceX && dx_err.norm() < kToleranceDx) {
+        redis_.command("PUBLISH nrc-next-goal next");
+        completed = true;
+    }
 
 	// Nullspace posture control and damping
     Eigen::VectorXd q_err = robot->_q - q_des_;
@@ -165,10 +167,10 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
  * Sets operational space goals whenever new information received from redis subscription.
  */
 NRC::ControllerStatus NRC::setOperationalSpaceGoals() {
-    // Stop the robot upon updating for safety
-    command_torques_.setZero();
-    redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
     redis_.set("updateFlag", "false");
+    completed = false;
+
+    x_des_ = redis_.getEigenMatrix("trajectory");
     
     return FINISHED;
 }
@@ -258,14 +260,13 @@ void NRC::runLoop() {
 			// Control end effector to desired position
             case OP_SPACE_POSITION_CONTROL:
             if (computeOperationalSpaceControlTorques() == FINISHED) {
-                cout << "Changing goals. Switching to operational space goal setter." << endl;
                 controller_state_ = OP_SPACE_GOAL_SET;
             }
             break;
 
             case OP_SPACE_GOAL_SET:
             if (setOperationalSpaceGoals() == FINISHED) {
-                cout << "Goals set. Switching to operational space controller." << endl;
+                cout << "Goal set. Switching to operational space controller." << endl;
                 controller_state_ = OP_SPACE_POSITION_CONTROL;
             }
             break;

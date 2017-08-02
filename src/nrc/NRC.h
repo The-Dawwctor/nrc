@@ -84,6 +84,8 @@ protected:
 	const int dof;  // Initialized with robot model
 	const double kToleranceInitQ  = 0.1;  // Joint space initialization tolerance
 	const double kToleranceInitDq = 0.1;  // Joint space initialization tolerance
+    const double kToleranceX = 0.1;  // Operational space goal tolerance
+    const double kToleranceDx = 0.1;  // Operational space goal tolerance
 	const double kMaxVelocity = 0.5;  // Maximum end effector velocity
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
@@ -142,6 +144,7 @@ protected:
 
 	// State machine
     ControllerState controller_state_;
+    bool completed = false;
 
 	// Controller variables
     Eigen::VectorXd command_torques_;
