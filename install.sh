@@ -5,7 +5,7 @@ set -e
 # ---------------------------------------
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-	sudo apt-get install curl cmake libeigen3-dev libtinyxml2-dev libjsoncpp-dev libhiredis-dev libglfw3-dev xorg-dev freeglut3-dev libasound2-dev libusb-1.0-0-dev redis-server
+	sudo apt-get install curl cmake libeigen3-dev libtinyxml2-dev libjsoncpp-dev libhiredis-dev libglfw3-dev xorg-dev freeglut3-dev libasound2-dev libusb-1.0-0-dev redis-server libyaml-cpp-dev libboost-system-dev libboost-thread-dev
 	# Install gcc 5 for Ubuntu 14.04:
 	# sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 	# sudo apt-get update

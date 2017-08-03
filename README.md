@@ -158,18 +158,12 @@ Follow the instructions at https://github.com/The-Dawwctor/shrdlurn-robot
 
     The website can be changed through the instructions on the SHRDLURN-robot git repository.
 
-3. Inside bin of the nrc git repository, you will find visualizer, simulator, and nrc
-   ```
-   ./nrc &
-   ./visualizer &
-   ```
+3. Inside bin of the nrc git repository, you will find a run_nrc.sh script
    Note this opens up the applications in the background, use "jobs" to see currently running jobs and "fg" or "bg" to foreground next job or background next job
    
    In order to run the nrc program, have 3 separate terminals open and start, in this order:
    ```
-   ./simulator resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
-   ./nrc resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
-   ./visualizer resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
+   sh run_nrc.sh resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
    ```
    
-4. Read the source code of NRC inside src/nrc/NRC.cpp and the URDF file src/nrc/kuka_iiwa.urdf and src/nrc/world.urdf to understand what is happening inside the robot code and how the robot is described both kinematically and graphically.
+4. Read the source code of NRC inside src/nrc/NRC.cpp and the URDF file src/nrc/kuka_iiwa.urdf and src/nrc/world.urdf to understand what is happening for the robot simulation and control.

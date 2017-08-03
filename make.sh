@@ -122,4 +122,23 @@ EOF
 	chmod +x run_controller.sh
 fi
 
+# Run generic controller script
+if [ -f "nrc" ]; then
+    cat <<EOF > run_nrc.sh
+if [ "\$#" -lt 3 ]; then
+    cat <<EOM
+This script calls ./visualizer, ./simulator, and ./nrc simultaneously.
+All the arguments after the controller will be passed directly to it.
+
+Usage: sh run_nrc.sh <path-to-world.urdf> <path-to-robot.urdf> <robot-name>
+EOM
+else
+    trap 'kill %1; kill %2' SIGINT
+    trap 'kill %1; kill %2' EXIT
+    ./simulator \$1 \$2 \$3 > simulator.log & ./visualizer \$1 \$2 \$3 > visualizer.log & ./nrc \$1 \$2 \$3
+fi
+EOF
+    chmod +x run_nrc.sh
+fi
+
 cd ..
