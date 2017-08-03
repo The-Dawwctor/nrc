@@ -147,21 +147,21 @@ Follow the instructions at https://github.com/The-Dawwctor/shrdlurn-robot
     ```
     yarn start
     ```
-    to open a localhost website.
+    to open a website through localhost.
 
     Alternatively, type
     ```
-    yarn build
+    yarn build &&
     yarn deploy
     ```
-    and go to the website https://the-dawwctor.github.io/shrdlurn-robot/ to see the web client.
+    and go to the website https://the-dawwctor.github.io/shrdlurn-robot/ to see the web client. You may need to enable unsafe scripts in order for the javascript on the web client to work.
 
     The website can be changed through the instructions on the SHRDLURN-robot git repository.
 
 3. Inside bin of the nrc git repository, you will find a run_nrc.sh script
    Note this opens up the applications in the background, use "jobs" to see currently running jobs and "fg" or "bg" to foreground next job or background next job
    
-   In order to run the nrc program, have 3 separate terminals open and start, in this order:
+   To run the program, type
    ```
    sh run_nrc.sh resources/nrc/world.urdf resources/nrc/kuka_iiwa.urdf kuka_iiwa
    ```
