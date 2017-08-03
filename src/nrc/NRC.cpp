@@ -171,7 +171,7 @@ NRC::ControllerStatus NRC::setOperationalSpaceGoals() {
     completed = false;
 
     x_des_ = redis_.getEigenMatrix("trajectory");
-    
+
     return FINISHED;
 }
 
@@ -266,7 +266,6 @@ void NRC::runLoop() {
 
             case OP_SPACE_GOAL_SET:
             if (setOperationalSpaceGoals() == FINISHED) {
-                cout << "Goal set. Switching to operational space controller." << endl;
                 controller_state_ = OP_SPACE_POSITION_CONTROL;
             }
             break;

@@ -29,8 +29,11 @@ def main():
     # Listen for all published world states
     for message in pSub.listen():
         if message["type"] == "message":
+            # Give next point in current trajectory
+            if message["channel"] == "nrc-next-goal":
+                idx += 1
             # Creating new trajectory
-            if message["channel"] == "nrc-world-state":
+            elif message["channel"] == "nrc-world-state":
                 decode = json.loads(message["data"])
                 decode.sort(key = lambda x : int(x[1])) # sorts points by id
 
@@ -56,38 +59,34 @@ def main():
                             obstacles.append(position)
 
                 # Initialize clamped spline (A) & interpolated points (s) matrix
-                n = len(goals)
-                A = np.zeros([n, n])
                 goals = np.array(goals)
-                s = 3 * goals[:]
+                n = len(goals)
+                A = np.zeros([n-2, n-2])
+                s = 6 * goals[1:-1]
+                s[0] -= goals[0]
+                s[-1] -= goals[-1]
+                b = [goals[0]]  # Bezier curve control points
 
                 # Calculate matrices
-                for i in range(n):
-                    if i != n-1:
-                        A[i][i] += 2
-                        A[i][i+1] += 1
-                        A[i+1][i] += 1
-                        A[i+1][i+1] += 2
-                    
-                        if i != 0:
-                            s[i] *= 2
+                A[-1][-1] = 4
+                for i in range(n-3):
+                    A[i][i] = 4
+                    A[i][i+1] = 1
+                    A[i+1][i] = 1 
 
-                b = sl.solve(A, s, True, False, True, True)
+                b.extend(sl.solve(A, s, True, False, True, True))
+                b.append(goals[-1])
 
                 # Manually calculate all bezier curve points
                 interp = np.asarray(bezierCurve(goals, b, n))
                 idx = 0
 
-                # Spline smoothness verification graph
+                # # Spline smoothness verification graph
                 # fig = plt.figure()
                 # ax = fig.add_subplot(111, projection='3d')
                 # ax.plot(interp.T[0], interp.T[1], interp.T[2])
                 # ax.plot(goals.T[0], goals.T[1], goals.T[2])
                 # plt.show()
-
-            # Give next point in current trajectory
-            if message["channel"] == "nrc-next-goal":
-                idx += 1
 
             # Print current selected point in trajectory
             if idx < len(interp):

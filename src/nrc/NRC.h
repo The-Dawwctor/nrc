@@ -144,6 +144,7 @@ protected:
 
 	// State machine
     ControllerState controller_state_;
+    // Ensures next goal not given until current goal reached
     bool completed = false;
 
 	// Controller variables
