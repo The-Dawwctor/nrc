@@ -46,17 +46,14 @@ def main():
 
                 # Loop through all points
                 for point in decode:
+                    # Scaling factor from web client values to robot controller
+                    SCALING = 0.1
+                    position = [SCALING * point[2], SCALING * point[3], SCALING * point[4]]
                     # Only consider goal points and obstacles
-                    if "PEPoint" in point[0]:
-                        # Scaling factor from web client values to robot controller
-                        SCALING = 0.1
-                        position = [SCALING * point[2], SCALING * point[3], SCALING * point[4]]
-
-                        # Set goal position or add to obstacles based off attract state
-                        if (point[7]):
-                            goals.append(position)
-                        else:
-                            obstacles.append(position)
+                    if "Goal" in point[0]:
+                        goals.append(position)
+                    elif "Obstacle" in point[0]:
+                        obstacles.append(position)
 
                 goals = np.array(goals)
 
