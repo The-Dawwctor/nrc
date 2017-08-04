@@ -35,26 +35,29 @@ def main():
             # Creating new trajectory
             elif message["channel"] == "nrc-world-state":
                 decode = json.loads(message["data"])
-                decode.sort(key = lambda x : int(x[1])) # sorts points by id
 
-                # Refresh list of goals and obstacles for each new message
-                eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
-                startPos = [float(x) for x in rPub.get(eeKey).split()] if rPub.exists(eeKey) \
-                                                                        else [0, 0, 0]
-                goals = [startPos]
+                goals = []
                 obstacles = []
+
+                # Scaling factor from web client values to robot controller
+                SCALING = 0.1
 
                 # Loop through all points
                 for point in decode:
-                    # Scaling factor from web client values to robot controller
-                    SCALING = 0.1
-                    position = [SCALING * point[2], SCALING * point[3], SCALING * point[4]]
                     # Only consider goal points and obstacles
                     if "Goal" in point[0]:
-                        goals.append(position)
+                        goals.append(point)
                     elif "Obstacle" in point[0]:
+                        position = [SCALING * point[2], SCALING * point[3], SCALING * point[4]]
                         obstacles.append(position)
 
+                goals.sort(key = lambda x : int(x[7])) # sorts points by order
+                goals = [[SCALING * x[2], SCALING * x[3], SCALING * x[4]] for x in goals]
+
+                # Refresh list of goals and obstacles for each new message
+                eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
+                startPos = [float(x) for x in rPub.get(eeKey).split()] if rPub.exists(eeKey) else [0, 0, 0]
+                goals.insert(0, startPos)
                 goals = np.array(goals)
 
                 if len(goals) > 2:
