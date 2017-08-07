@@ -26,11 +26,13 @@ void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
     redisReply* r = (redisReply*)reply;
 
     if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
+        /*
         // Push to redis since asynchronous can't communicate with synchronous
         RedisClient update_;
         update_.connect("127.0.0.1", 6379);
         update_.set("updateFlag", "true");
         update_.set("trajectory", r->element[2]->str);
+        */
     }
 }
 

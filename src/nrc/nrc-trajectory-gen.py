@@ -35,7 +35,6 @@ def main():
             # Creating new trajectory
             elif message["channel"] == "nrc-world-state":
                 decode = json.loads(message["data"])
-
                 goals = []
                 obstacles = []
 
@@ -53,6 +52,8 @@ def main():
 
                 goals.sort(key = lambda x : int(x[7])) # sorts points by order
                 goals = [[SCALING * x[2], SCALING * x[3], SCALING * x[4]] for x in goals]
+
+                print goals
 
                 # Refresh list of goals and obstacles for each new message
                 eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
@@ -81,11 +82,14 @@ def main():
 
                     # Manually calculate all bezier curve points
                     interp = bezierCurve(goals, b, n)
-                else:   # If only 2 point, just do a line
+                elif len(goals) == 2:   # If only 2 points, just do a line
                     for i in xrange(10):
                         interp.append(goals[0] + (goals[1] - goals[0]) * i/10.0)
 
                     interp.append(goals[1])
+                else: # SHOULD NOT HAPPEN, PROBLEM HERE
+                    print "Points: " + str(decode)
+                    print "Goals: " + str(goals)
 
                 idx = 0
                 interp = np.array(interp)
