@@ -23,26 +23,36 @@ def main():
     pSub = rSub.pubsub()
     pSub.subscribe("nrc-world-state", "nrc-next-goal")
 
+    GOALS_KEY = "nrc::optitrack::pos_rigid_bodies"
+    EE_KEY = "nrc::kuka_iiwa::tasks::ee_pos"
+
     interp = []
+    goals = []
+    obstacles = []
     idx = 0;
 
     # Listen for all published world states
     for message in pSub.listen():
         if message["type"] == "message":
             # Refresh starting position
-            eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
             startPos = [0, 0, 0]
-            if rPub.exists(eeKey):
-                startPos = [float(x) for x in rPub.get(eeKey).split()]
+            if rPub.exists(EE_KEY):
+                startPos = [float(x) for x in rPub.get(EE_KEY).split()]
 
             # Give next point in current trajectory
             if message["channel"] == "nrc-next-goal":
                 idx += 1
             # Creating new trajectory from Optitrack
             elif message["channel"] == "nrc-optitrack":
-                goalsKeys = "nrc::optitrack::pos_rigid_bodies"
-                goals = json.loads(rPub.get(goalsKeys))
-                goals.insert(0, startPos)
+                if message["data"] == "start":
+                    # Convert list of rigidbodies to go to into list of corresponding positions
+                    # Accounts for gaps in numberin
+                    optiGoals = json.loads(rPub.get(GOALS_KEY))
+                    indices = [g[0] for g in sorted(enumerate(goals), key=lambda x:x[1])]
+                    goals = [optiGoals[i-1] for i in indices]
+                else:
+                    goals.append(int(message["data"]))
+
             # Creating new trajectory from web client
             elif message["channel"] == "nrc-world-state":
                 decode = json.loads(message["data"])
