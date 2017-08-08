@@ -29,10 +29,21 @@ def main():
     # Listen for all published world states
     for message in pSub.listen():
         if message["type"] == "message":
+            # Refresh starting position
+            eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
+            startPos = [0, 0, 0]
+            if rPub.exists(eeKey):
+                startPos = [float(x) for x in rPub.get(eeKey).split()]
+
             # Give next point in current trajectory
             if message["channel"] == "nrc-next-goal":
                 idx += 1
-            # Creating new trajectory
+            # Creating new trajectory from Optitrack
+            elif message["channel"] == "nrc-optitrack":
+                goalsKeys = "nrc::optitrack::pos_rigid_bodies"
+                goals = json.loads(rPub.get(goalsKeys))
+                goals.insert(0, startPos)
+            # Creating new trajectory from web client
             elif message["channel"] == "nrc-world-state":
                 decode = json.loads(message["data"])
                 goals = []
@@ -53,11 +64,8 @@ def main():
                 goals.sort(key = lambda x : int(x[7])) # sorts points by order
                 goals = [[SCALING * x[2], SCALING * x[3], SCALING * x[4]] for x in goals]
 
-                print goals
+                # print goals
 
-                # Refresh list of goals and obstacles for each new message
-                eeKey = "nrc::kuka_iiwa::tasks::ee_pos"
-                startPos = [float(x) for x in rPub.get(eeKey).split()] if rPub.exists(eeKey) else [0, 0, 0]
                 goals.insert(0, startPos)
                 goals = np.array(goals)
 
@@ -83,6 +91,7 @@ def main():
                     # Manually calculate all bezier curve points
                     interp = bezierCurve(goals, b, n)
                 elif len(goals) == 2:   # If only 2 points, just do a line
+                    interp = []
                     for i in xrange(10):
                         interp.append(goals[0] + (goals[1] - goals[0]) * i/10.0)
 

@@ -26,13 +26,11 @@ void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
     redisReply* r = (redisReply*)reply;
 
     if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
-        /*
         // Push to redis since asynchronous can't communicate with synchronous
+        *(int*)privdata = 3; // Set controller state to OP_SPACE_GOAL_SET
         RedisClient update_;
         update_.connect("127.0.0.1", 6379);
-        update_.set("updateFlag", "true");
         update_.set("trajectory", r->element[2]->str);
-        */
     }
 }
 
@@ -134,8 +132,6 @@ NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
  * Controller to move end effector to desired position.
  */
 NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
-    if (redis_.get("updateFlag") == "true") return FINISHED;
-
 	// PD position control with velocity saturation
     Eigen::Vector3d x_err = x_ - x_des_;
     dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
@@ -169,12 +165,8 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
  * Sets operational space goals whenever new information received from redis subscription.
  */
 NRC::ControllerStatus NRC::setOperationalSpaceGoals() {
-    redis_.set("updateFlag", "false");
     completed = false;
-
     x_des_ = redis_.getEigenMatrix("trajectory");
-
-    return FINISHED;
 }
 
 /**
@@ -199,7 +191,7 @@ void NRC::initialize() {
         cout << "Error: " << sub_->errstr << endl;
         exit(1);
     }
-    redisAsyncCommand(sub_, readPointValues, NULL, "SUBSCRIBE nrc-trajectory");
+    redisAsyncCommand(sub_, readPointValues, &controller_state_, "SUBSCRIBE nrc-trajectory");
     redisAsyncHandleWrite(sub_);
 
 	// Set up optitrack
@@ -266,10 +258,10 @@ void NRC::runLoop() {
             }
             break;
 
+            // Set desired end effector goal position
             case OP_SPACE_GOAL_SET:
-            if (setOperationalSpaceGoals() == FINISHED) {
-                controller_state_ = OP_SPACE_POSITION_CONTROL;
-            }
+            setOperationalSpaceGoals();
+            controller_state_ = OP_SPACE_POSITION_CONTROL;
             break;
 
 			// Invalid state. Zero torques and exit program.
