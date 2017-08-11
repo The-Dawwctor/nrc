@@ -195,8 +195,7 @@ void NRC::initialize() {
     redisAsyncHandleWrite(sub_);
 
 	// Set up optitrack
-	// optitrack_.openConnection("123.45.67.89");
-    optitrack_.openCsv("../resources/optitrack_120.csv");
+	optitrack_.openConnection("123.45.67.89");
 
 	// Set gains in Redis if not initialized
     redis_.set(KEY_KP_POSITION, to_string(kp_pos_));
@@ -291,7 +290,7 @@ int main(int argc, char** argv) {
 
 	// Parse command line
 	if (argc != 4) {
-		cout << "Usage: demo_app <path-to-world.urdf> <path-to-robot.urdf> <robot-name>" << endl;
+		cout << "Usage: ./nrc <path-to-world.urdf> <path-to-robot.urdf> <robot-name>" << endl;
 		exit(0);
 	}
 	// Argument 0: executable name

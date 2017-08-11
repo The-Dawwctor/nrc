@@ -20,7 +20,7 @@ def bezierCurve(goals, b, n):
 def generateTrajectory(goals):
     points = []
     if len(goals) > 2:
-        # Initialize clamped spline (A) & interpolated points (s) matrix
+        # Initialize spline (A) & interpolated points (s) matrix
         n = len(goals)
         A = np.zeros([n-2, n-2])
         s = 6 * goals[1:-1]
@@ -40,11 +40,13 @@ def generateTrajectory(goals):
 
         # Manually calculate all bezier curve points
         points = bezierCurve(goals, b, n)
+
     elif len(goals) == 2:   # If only 2 points, just do a line
         for i in xrange(10):
             points.append(goals[0] + (goals[1] - goals[0]) * i/10.0)
 
         points.append(goals[1])
+
     else: # SHOULD NOT HAPPEN, PROBLEM IF IT GOES HERE
         print "ERROR:"
         print "Goals: " + str(goals)
@@ -52,8 +54,8 @@ def generateTrajectory(goals):
     return np.array(points)
 
 def main():
-    rPub = redis.StrictRedis(host='localhost', port=6379, db=0)
-    rSub = redis.StrictRedis(host='localhost', port=6379, db=1)
+    rPub = redis.StrictRedis(host='localhost', port=6379)
+    rSub = redis.StrictRedis(host='localhost', port=6379)
     pSub = rSub.pubsub()
     pSub.subscribe("nrc-world-state", "nrc-next-goal")
 
