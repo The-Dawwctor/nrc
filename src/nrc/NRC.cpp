@@ -145,13 +145,24 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
         completed = true;
     }
 
-	// Nullspace posture control and damping
+    // Calculate produced forces from obstacle avoidance through potential fields
+    Eigen::Vector3d ddx_obs = Eigen::Vector3d::Zero();
+    for (auto vec : obstacles) {
+        Eigen::Vector3d obs_err = vec - x_;
+        if (obs_err.norm() > AVOID_THRESHOLD) continue;
+        
+        Eigen::Vector3d dx_obs_des_ = -(10 * kv_pos_ / kp_pos_) * obs_err;
+        Eigen::Vector3d dx_obs_err = dx_ - dx_obs_des_;
+        ddx_obs += -kv_pos_ * dx_obs_err;
+    }
+
+    // Nullspace posture control and damping
     Eigen::VectorXd q_err = robot->_q - q_des_;
     Eigen::VectorXd dq_err = robot->_dq - dq_des_;
     Eigen::VectorXd ddq = -kp_joint_ * q_err - kv_joint_ * dq_err;
 
-	// Control torques
-    Eigen::Vector3d F_x = Lambda_x_ * ddx;
+    // Control torques
+    Eigen::Vector3d F_x = Lambda_x_ * (ddx + ddx_obs);
     Eigen::VectorXd F_posture = robot->_M * ddq;
     command_torques_ = Jv_.transpose() * F_x + N_.transpose() * F_posture + g_;
 
@@ -194,7 +205,7 @@ void NRC::initialize() {
     redisAsyncHandleWrite(sub_);
 
 	// Set up optitrack
-	optitrack_.openConnection("123.45.67.89");
+    optitrack_.openConnection("123.45.67.89");
 
 	// Set gains in Redis if not initialized
     redis_.set(KEY_KP_POSITION, to_string(kp_pos_));
