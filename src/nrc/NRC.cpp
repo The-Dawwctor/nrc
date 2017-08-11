@@ -17,39 +17,20 @@ static inline bool isnan(const Eigen::MatrixBase<Derived>& x) {
 using namespace std;
 
 /**
- * NRC::readPointValues()
+ * readPointValues()
  * ------------------------------
- * Retrieve all point key values from Redis.
+ * Retrieve all point key values from Redis with pub/sub
  */
-void NRC::readPointValues() {
-    int highestID = stoi(redis_.get("highestID"));
-    obstacles.clear();
+void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
+    if (reply == NULL) return;
+    redisReply* r = (redisReply*)reply;
 
-    // Loop through all points
-    for (int id = 0; id <= highestID; id++) {
-        // Read in desired end effector position from points in Redis
-        string keyPoint = "p:" + to_string(id);
-
-        // Check for goals & obstacles from existing points
-        auto replyPoints = redis_.command("SISMEMBER points %s", keyPoint.c_str());
-
-        // Only consider points currently in world (since removal is legal)
-        if (replyPoints->integer == EXISTS) {
-            // Only consider goal points and obstacles
-            auto replyName = redis_.command("HGET %s name", keyPoint.c_str());
-            if (string(replyName->str) == "PEPoint") {
-                string keyPointPosition = keyPoint + ":position";
-                Eigen::Vector3d position = SCALING * redis_.getEigenMatrix(keyPointPosition);
-
-                // Set goal position or add to obstacles based off attract state
-                auto replyAttract = redis_.command("HGET %s attract", keyPoint.c_str());
-                if (string(replyAttract->str) == "true") {
-                    x_des_ = position;
-                } else {
-                    obstacles.insert(position);
-                }
-            }
-        }
+    if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
+        // Push to redis since asynchronous can't communicate with synchronous
+        *(int*)privdata = 3; // Set controller state to OP_SPACE_GOAL_SET
+        RedisClient update_;
+        update_.connect("127.0.0.1", 6379);
+        update_.set("trajectory", r->element[2]->str);
     }
 }
 
@@ -63,18 +44,16 @@ void NRC::readRedisValues() {
 	robot->_q = redis_.getEigenMatrix(KEY_JOINT_POSITIONS);
 	robot->_dq = redis_.getEigenMatrix(KEY_JOINT_VELOCITIES);
 
-	// Get current simulation timestamp from Redis
+	// // Get current simulation timestamp from Redis
 	t_curr_ = stod(redis_.get(KEY_TIMESTAMP));
 
-	// Read in KP and KV from Redis (can be changed on the fly in Redis)
+	// // Read in KP and KV from Redis (can be changed on the fly in Redis)
 	kp_pos_ = stoi(redis_.get(KEY_KP_POSITION));
 	kv_pos_ = stoi(redis_.get(KEY_KV_POSITION));
 	kp_ori_ = stoi(redis_.get(KEY_KP_ORIENTATION));
 	kv_ori_ = stoi(redis_.get(KEY_KV_ORIENTATION));
 	kp_joint_ = stoi(redis_.get(KEY_KP_JOINT));
 	kv_joint_ = stoi(redis_.get(KEY_KV_JOINT));
-
-    readPointValues();
 
 	// Read frames from OptiTrackClient
     if (!optitrack_.getFrame()) return;
@@ -102,15 +81,7 @@ void NRC::writeRedisValues() {
 	redis_.setEigenMatrix(KEY_EE_POS_DES, x_des_);
 
 	// Send torques
-	redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
-
-    // Send obstacle positions
-    if (obstacles.empty()) {
-        redis_.setEigenMatrix(KEY_OBS_POS, Eigen::Vector3d::Zero());
-    }
-    for (auto vec : obstacles) {
-        redis_.setEigenMatrix(KEY_OBS_POS, vec);
-    }
+    redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 /**
@@ -161,12 +132,18 @@ NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
  */
 NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
 	// PD position control with velocity saturation
-	Eigen::Vector3d x_err = x_ - x_des_;
-	dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
-	double v = kMaxVelocity / dx_des_.norm();
-	if (v > 1) v = 1;
-	Eigen::Vector3d dx_err = dx_ - v * dx_des_;
-	Eigen::Vector3d ddx = -kv_pos_ * dx_err;
+    Eigen::Vector3d x_err = x_ - x_des_;
+    dx_des_ = -(kp_pos_ / kv_pos_) * x_err;
+    double v = kMaxVelocity / dx_des_.norm();
+    if (v > 1) v = 1;
+    Eigen::Vector3d dx_err = dx_ - v * dx_des_;
+    Eigen::Vector3d ddx = -kv_pos_ * dx_err;
+
+    // Reached desired goal position and velocity; need next goal
+    if (!completed && x_err.norm() < kToleranceX && dx_err.norm() < kToleranceDx) {
+        redis_.command("PUBLISH nrc-next-goal next");
+        completed = true;
+    }
 
     // Calculate produced forces from obstacle avoidance through potential fields
     Eigen::Vector3d ddx_obs = Eigen::Vector3d::Zero();
@@ -175,23 +152,31 @@ NRC::ControllerStatus NRC::computeOperationalSpaceControlTorques() {
         if (obs_err.norm() > AVOID_THRESHOLD) continue;
         
         Eigen::Vector3d dx_obs_des_ = -(10 * kv_pos_ / kp_pos_) * obs_err;
-        double v = kMaxVelocity / dx_obs_des_.norm();
-        if (v > 1) v = 1;
-        Eigen::Vector3d dx_obs_err = dx_ - v * dx_obs_des_;
+        Eigen::Vector3d dx_obs_err = dx_ - dx_obs_des_;
         ddx_obs += -kv_pos_ * dx_obs_err;
     }
 
-	// Nullspace posture control and damping
+    // Nullspace posture control and damping
     Eigen::VectorXd q_err = robot->_q - q_des_;
     Eigen::VectorXd dq_err = robot->_dq - dq_des_;
     Eigen::VectorXd ddq = -kp_joint_ * q_err - kv_joint_ * dq_err;
 
-	// Control torques
+    // Control torques
     Eigen::Vector3d F_x = Lambda_x_ * (ddx + ddx_obs);
     Eigen::VectorXd F_posture = robot->_M * ddq;
     command_torques_ = Jv_.transpose() * F_x + N_.transpose() * F_posture + g_;
 
     return RUNNING;
+}
+
+/**
+ * NRC::setOperationalSpaceGoals()
+ * ----------------------------------------------
+ * Sets operational space goals whenever new information received from redis subscription.
+ */
+NRC::ControllerStatus NRC::setOperationalSpaceGoals() {
+    completed = false;
+    x_des_ = redis_.getEigenMatrix("trajectory");
 }
 
 /**
@@ -210,17 +195,25 @@ void NRC::initialize() {
 	// Make sure redis-server is running at localhost with default port 6379
 	redis_.connect(kRedisHostname, kRedisPort);
 
+    // Start asynchronous redis client for pub/sub
+    sub_ = redisAsyncConnect(kRedisHostname.c_str(), kRedisPort);
+    if (sub_->err) {
+        cout << "Error: " << sub_->errstr << endl;
+        exit(1);
+    }
+    redisAsyncCommand(sub_, readPointValues, &controller_state_, "SUBSCRIBE nrc-trajectory");
+    redisAsyncHandleWrite(sub_);
+
 	// Set up optitrack
-	// optitrack_.openConnection("123.45.67.89");
-	optitrack_.openCsv("../resources/optitrack_120.csv");
+    optitrack_.openConnection("123.45.67.89");
 
 	// Set gains in Redis if not initialized
-	redis_.set(KEY_KP_POSITION, to_string(kp_pos_));
-	redis_.set(KEY_KV_POSITION, to_string(kv_pos_));
-	redis_.set(KEY_KP_ORIENTATION, to_string(kp_ori_));
-	redis_.set(KEY_KV_ORIENTATION, to_string(kv_ori_));
-	redis_.set(KEY_KP_JOINT, to_string(kp_joint_));
-	redis_.set(KEY_KV_JOINT, to_string(kv_joint_));
+    redis_.set(KEY_KP_POSITION, to_string(kp_pos_));
+    redis_.set(KEY_KV_POSITION, to_string(kv_pos_));
+    redis_.set(KEY_KP_ORIENTATION, to_string(kp_ori_));
+    redis_.set(KEY_KV_ORIENTATION, to_string(kv_ori_));
+    redis_.set(KEY_KP_JOINT, to_string(kp_joint_));
+    redis_.set(KEY_KV_JOINT, to_string(kv_joint_));
     redis_.setEigenMatrix(KEY_EE_POS_DES, x_des_);
 }
 
@@ -235,23 +228,25 @@ void NRC::runLoop() {
 		timer_.waitForNextLoop();
 		++controller_counter_;
 
-		// Get latest sensor values from Redis and update robot model
-		try {
-			readRedisValues();
-		} catch (std::exception& e) {
-			if (controller_state_ != REDIS_SYNCHRONIZATION) {
-				std::cout << e.what() << " Aborting..." << std::endl;
-				break;
-			}
-			std::cout << e.what() << " Waiting..." << std::endl;
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			continue;
-		}
-		updateModel();
+        redisAsyncHandleRead(sub_);
 
-		switch (controller_state_) {
+		// Get latest sensor values from Redis and update robot model
+        try {
+            readRedisValues();
+        } catch (std::exception& e) {
+            if (controller_state_ != REDIS_SYNCHRONIZATION) {
+                std::cout << e.what() << " Aborting..." << std::endl;
+                break;
+            }
+            std::cout << e.what() << " Waiting..." << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
+        updateModel();
+
+        switch (controller_state_) {
 			// Wait until valid sensor values have been published to Redis
-			case REDIS_SYNCHRONIZATION:
+            case REDIS_SYNCHRONIZATION:
             if (isnan(robot->_q)) continue;
             cout << "Redis synchronized. Switching to joint space controller." << endl;
             controller_state_ = JOINT_SPACE_INITIALIZATION;
@@ -260,44 +255,52 @@ void NRC::runLoop() {
 			// Initialize robot to default joint configuration
             case JOINT_SPACE_INITIALIZATION:
             if (computeJointSpaceControlTorques() == FINISHED) {
-               cout << "Joint position initialized. Switching to operational space controller." << endl;
-               controller_state_ = NRC::OP_SPACE_POSITION_CONTROL;
-           };
-           break;
+                cout << "Joint position initialized. Switching to operational space controller." << endl;
+                controller_state_ = OP_SPACE_POSITION_CONTROL;
+            }
+            break;
 
 			// Control end effector to desired position
-           case OP_SPACE_POSITION_CONTROL:
-           computeOperationalSpaceControlTorques();
-           break;
+            case OP_SPACE_POSITION_CONTROL:
+            if (computeOperationalSpaceControlTorques() == FINISHED) {
+                controller_state_ = OP_SPACE_GOAL_SET;
+            }
+            break;
+
+            // Set desired end effector goal position
+            case OP_SPACE_GOAL_SET:
+            setOperationalSpaceGoals();
+            controller_state_ = OP_SPACE_POSITION_CONTROL;
+            break;
 
 			// Invalid state. Zero torques and exit program.
-           default:
-           cout << "Invalid controller state. Stopping controller." << endl;
-           g_runloop = false;
-           command_torques_.setZero();
-           break;
-       }
+            default:
+            cout << "Invalid controller state. Stopping controller." << endl;
+            g_runloop = false;
+            command_torques_.setZero();
+            break;
+        }
 
 		// Check command torques before sending them
-       if (isnan(command_torques_)) {
-         cout << "NaN command torques. Sending zero torques to robot." << endl;
-         command_torques_.setZero();
-     }
+        if (isnan(command_torques_)) {
+            cout << "NaN command torques. Sending zero torques to robot." << endl;
+            command_torques_.setZero();
+        }
 
 		// Send command torques
-     writeRedisValues();
- }
+        writeRedisValues();
+    }
 
 	// Zero out torques before quitting
- command_torques_.setZero();
- redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+    command_torques_.setZero();
+    redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
 int main(int argc, char** argv) {
 
 	// Parse command line
 	if (argc != 4) {
-		cout << "Usage: demo_app <path-to-world.urdf> <path-to-robot.urdf> <robot-name>" << endl;
+		cout << "Usage: ./nrc <path-to-world.urdf> <path-to-robot.urdf> <robot-name>" << endl;
 		exit(0);
 	}
 	// Argument 0: executable name

@@ -13,14 +13,12 @@
 // External
 #include <Eigen/Core>
 #include <hiredis/hiredis.h>
+#include <hiredis/async.h>
 #include <model/ModelInterface.h>
 
 class NRC {
 
 public:
-    // Scaling factor from web client values to redis server
-    const double SCALING = 0.1;
-
     NRC(std::shared_ptr<Model::ModelInterface> robot,
       const std::string &robot_name) :
     robot(robot),
@@ -72,7 +70,8 @@ protected:
 	enum ControllerState {
 		REDIS_SYNCHRONIZATION,
 		JOINT_SPACE_INITIALIZATION,
-		OP_SPACE_POSITION_CONTROL
+		OP_SPACE_POSITION_CONTROL,
+        OP_SPACE_GOAL_SET
 	};
 
 	// Return values from computeControlTorques() methods
@@ -86,6 +85,8 @@ protected:
 	const int dof;  // Initialized with robot model
 	const double kToleranceInitQ  = 0.1;  // Joint space initialization tolerance
 	const double kToleranceInitDq = 0.1;  // Joint space initialization tolerance
+    const double kToleranceX = 0.1;  // Operational space goal tolerance
+    const double kToleranceDx = 0.1;  // Operational space goal tolerance
 	const double kMaxVelocity = 0.5;  // Maximum end effector velocity
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
@@ -110,23 +111,20 @@ protected:
     const std::string KEY_KV_ORIENTATION;
     const std::string KEY_KP_JOINT;
     const std::string KEY_KV_JOINT;
-    // - read point info:
-    const std::string POINT_SET = "points";
     // - write obstacle info:
     const std::string KEY_OBS_POS;
 
     // Miscellaneous constants
-    const int EXISTS = 1;
     const double AVOID_THRESHOLD = 0.2;
 
 	/***** Member functions *****/
 
-    void readPointValues();
     void readRedisValues();
     void updateModel();
     void writeRedisValues();
     ControllerStatus computeJointSpaceControlTorques();
     ControllerStatus computeOperationalSpaceControlTorques();
+    ControllerStatus setOperationalSpaceGoals();
 
 	/***** Member variables *****/
 
@@ -135,6 +133,7 @@ protected:
 
 	// Redis
     RedisClient redis_;
+    redisAsyncContext* sub_;
 
 	// Timer
     LoopTimer timer_;
@@ -146,6 +145,8 @@ protected:
 
 	// State machine
     ControllerState controller_state_;
+    // Ensures next goal not given until current goal reached
+    bool completed = false;
 
 	// Controller variables
     Eigen::VectorXd command_torques_;

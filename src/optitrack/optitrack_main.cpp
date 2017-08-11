@@ -15,12 +15,12 @@
 
 #include <Eigen/Core>
 
-static const std::string KEY_PREFIX = RedisServer::KEY_PREFIX + "optitrack::";
+static const std::string kRedisKeyPrefix = "nrc::optitrack::";
 
-static const std::string KEY_TIMESTAMP          = KEY_PREFIX + "timestamp";
-static const std::string KEY_POS_RIGID_BODIES   = KEY_PREFIX + "pos_rigid_bodies";
-static const std::string KEY_ORI_RIGID_BODIES   = KEY_PREFIX + "ori_rigid_bodies";
-static const std::string KEY_POS_SINGLE_MARKERS = KEY_PREFIX + "pos_single_markers";
+static const std::string KEY_TIMESTAMP          = kRedisKeyPrefix + "timestamp";
+static const std::string KEY_POS_RIGID_BODIES   = kRedisKeyPrefix + "pos_rigid_bodies";
+static const std::string KEY_ORI_RIGID_BODIES   = kRedisKeyPrefix + "ori_rigid_bodies";
+static const std::string KEY_POS_SINGLE_MARKERS = kRedisKeyPrefix + "pos_single_markers";
 
 int main(int argc, char** argv) {
 	// Usage
@@ -109,9 +109,9 @@ int main(int argc, char** argv) {
 
 		redis.pipeset({
 			{KEY_TIMESTAMP, std::to_string(t_curr)},
-			{KEY_POS_RIGID_BODIES, RedisClient::encodeEigenMatrix(pos_rigid_bodies)},
-			{KEY_ORI_RIGID_BODIES, RedisClient::encodeEigenMatrix(ori_rigid_bodies)},
-			{KEY_POS_SINGLE_MARKERS, RedisClient::encodeEigenMatrix(pos_single_markers)}
+			{KEY_POS_RIGID_BODIES, RedisClient::encodeEigenMatrixJSON(pos_rigid_bodies)},
+			{KEY_ORI_RIGID_BODIES, RedisClient::encodeEigenMatrixJSON(ori_rigid_bodies)},
+			{KEY_POS_SINGLE_MARKERS, RedisClient::encodeEigenMatrixJSON(pos_single_markers)}
 		});
 	}
 
