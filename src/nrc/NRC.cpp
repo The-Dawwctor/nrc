@@ -17,11 +17,11 @@ static inline bool isnan(const Eigen::MatrixBase<Derived>& x) {
 using namespace std;
 
 /**
- * readPointValues()
+ * readGoals()
  * ------------------------------
- * Retrieve all point key values from Redis with pub/sub
+ * Retrieve all goal values from Redis with pub/sub
  */
-void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
+void readGoals(redisAsyncContext* ac, void* reply, void* privdata) {
     if (reply == NULL) return;
     redisReply* r = (redisReply*)reply;
 
@@ -31,6 +31,25 @@ void readPointValues(redisAsyncContext* ac, void* reply, void* privdata) {
         RedisClient update_;
         update_.connect("127.0.0.1", 6379);
         update_.set("trajectory", r->element[2]->str);
+    }
+}
+
+/**
+ * readObstacles()
+ * ------------------------------
+ * Retrieve all obstacle values from Redis with pub/sub
+ */
+void readObstacles(redisAsyncContext* ac, void* reply, void* privdata) {
+    if (reply == NULL) return;
+    redisReply* r = (redisReply*)reply;
+
+    if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
+        auto allObs = (vector<Eigen::Vector3d>*) reply;
+        Eigen::MatrixXd obs = RedisClient::decodeEigenMatrix(r->element[2]->str);
+        for (int i = 0; i < obs.rows(); i++) {
+            allObs->push_back(obs.row(i));
+        }
+        cout << allObs << endl;
     }
 }
 
@@ -201,11 +220,12 @@ void NRC::initialize() {
         cout << "Error: " << sub_->errstr << endl;
         exit(1);
     }
-    redisAsyncCommand(sub_, readPointValues, &controller_state_, "SUBSCRIBE nrc-trajectory");
+    redisAsyncCommand(sub_, readGoals, &controller_state_, "SUBSCRIBE nrc-trajectory");
+    redisAsyncCommand(sub_, readObstacles, &obstacles, "SUBSCRIBE nrc-obstacles");
     redisAsyncHandleWrite(sub_);
 
 	// Set up optitrack
-    optitrack_.openConnection("123.45.67.89");
+    //optitrack_.openConnection("10.34.173.87");
 
 	// Set gains in Redis if not initialized
     redis_.set(KEY_KP_POSITION, to_string(kp_pos_));

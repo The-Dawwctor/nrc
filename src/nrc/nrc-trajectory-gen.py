@@ -130,6 +130,7 @@ def main():
                 idx = 0
                 interp = generateTrajectory(goals)
                 rPub.publish("nrc-trajectory", str(interp[idx].tolist()))
+                rPub.publish("nrc-obstacles", str(obstacles))
 
                 # Spline smoothness verification graph
                 # fig = plt.figure()

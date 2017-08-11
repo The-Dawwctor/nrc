@@ -43,8 +43,7 @@ public:
     g_(dof),
     q_des_(dof),
     dq_des_(dof),
-    controller_state_(REDIS_SYNCHRONIZATION),
-    obstacles(vec3dCmp)
+    controller_state_(REDIS_SYNCHRONIZATION)
     {
         command_torques_.setZero();
 
@@ -159,15 +158,7 @@ protected:
     Eigen::Vector3d x_des_, dx_des_;
 
     // Obstacle Avoidance
-    /***** Eigen Vector3d Comparison Function *****/
-    static bool vec3dCmp(Eigen::Vector3d a, Eigen::Vector3d b) {
-        for (int i = 0; i < 3; i++) {
-            if (a(i) < b(i)) return true;
-            if (a(i) > b(i)) return false;
-        }
-        return false;
-    }
-    std::set<Eigen::Vector3d, bool(*)(Eigen::Vector3d, Eigen::Vector3d)> obstacles;
+    std::vector<Eigen::Vector3d> obstacles;
 
 	// Default gains (used only when keys are nonexistent in Redis)
     double kp_pos_ = 40;
