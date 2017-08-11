@@ -198,9 +198,17 @@ int main(int argc, char** argv) {
 	Eigen::Vector3d x_prev, x_des_prev;  // Previous end effector pos
     Eigen::Vector3d obs_pos;             // Current obstacle pos
 	int idx_traj = 0, idx_des_traj = 0;  // Current idx in trajectory buffer
-	x = redis_client.getEigenMatrix(EE_POSITION_KEY);
-	x_des = redis_client.getEigenMatrix(EE_POSITION_DESIRED_KEY);
-    obs_pos = redis_client.getEigenMatrix(OBS_POS_KEY);
+
+	try {
+		x = redis_client.getEigenMatrix(EE_POSITION_KEY);
+		x_des = redis_client.getEigenMatrix(EE_POSITION_DESIRED_KEY);
+        obs_pos = redis_client.getEigenMatrix(OBS_POS_KEY);
+	} catch (std::exception& e) {
+		std::cout << e.what() << std::endl;
+		x.setZero();
+		x_des.setZero();
+	}
+
 	x_prev = x;
 	x_des_prev = x_des;
 
@@ -229,10 +237,12 @@ int main(int argc, char** argv) {
 
 #ifdef ENABLE_TRAJECTORIES
 		/********** Begin Custom Visualizer Code **********/
-
-		x = redis_client.getEigenMatrix(EE_POSITION_KEY);
-		x_des = redis_client.getEigenMatrix(EE_POSITION_DESIRED_KEY);
-        obs_pos = redis_client.getEigenMatrix(OBS_POS_KEY);
+		try {
+			x = redis_client.getEigenMatrix(EE_POSITION_KEY);
+			x_des = redis_client.getEigenMatrix(EE_POSITION_DESIRED_KEY);
+            obs_pos = redis_client.getEigenMatrix(OBS_POS_KEY);
+		} catch (std::exception& e) {
+		}
 
 		// Update end effector position trajectory
 		if ((x - x_prev).norm() > kTrajectoryMinUpdateDistance) {
@@ -392,7 +402,7 @@ void parseCommandline(int argc, char** argv) {
 
 #ifdef ENABLE_TRAJECTORIES
     /********** Begin Custom Visualizer Code **********/
-
+    
     EE_POSITION_KEY         = REDIS_KEY_PREFIX + robot_name + EE_POSITION_KEY;
     EE_POSITION_DESIRED_KEY = REDIS_KEY_PREFIX + robot_name + EE_POSITION_DESIRED_KEY;
     EE_TRAJECTORY_CHAI_NAME         = REDIS_KEY_PREFIX + robot_name + EE_TRAJECTORY_CHAI_NAME;
