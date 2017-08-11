@@ -403,6 +403,7 @@ void parseCommandline(int argc, char** argv) {
 
 #ifdef ENABLE_TRAJECTORIES
     /********** Begin Custom Visualizer Code **********/
+    
     EE_POSITION_KEY         = REDIS_KEY_PREFIX + robot_name + EE_POSITION_KEY;
     EE_POSITION_DESIRED_KEY = REDIS_KEY_PREFIX + robot_name + EE_POSITION_DESIRED_KEY;
     EE_TRAJECTORY_CHAI_NAME         = REDIS_KEY_PREFIX + robot_name + EE_TRAJECTORY_CHAI_NAME;
