@@ -48,8 +48,7 @@ public:
         command_torques_.setZero();
 
         // Home configuration for Kinova Jaco
-        q_des_ << 90, -30, 0, 60, 0, -90;
-        q_des_ *= M_PI / 180.0;
+        q_des_.setZero();
         dq_des_.setZero();
 
 		// Desired end effector position
@@ -115,6 +114,7 @@ protected:
 
     // Miscellaneous constants
     const double AVOID_THRESHOLD = 0.2;
+    const std::string EE_LINK_NAME = "link5";
 
 	/***** Member functions *****/
 

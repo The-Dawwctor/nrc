@@ -113,14 +113,11 @@ void NRC::updateModel() {
 	robot->updateModel();
 
 	// Forward kinematics
-	// robot->position(x_, "link6", Eigen::Vector3d::Zero());
-	// robot->linearVelocity(dx_, "link6", Eigen::Vector3d::Zero());
-    robot->position(x_, "link6", Eigen::Vector3d::Zero());
-    robot->linearVelocity(dx_, "link6", Eigen::Vector3d::Zero());
+    robot->position(x_, EE_LINK_NAME, Eigen::Vector3d::Zero());
+    robot->linearVelocity(dx_, EE_LINK_NAME, Eigen::Vector3d::Zero());
 
 	// Jacobians
-	// robot->Jv(Jv_, "link6", Eigen::Vector3d::Zero());
-    robot->Jv(Jv_, "link6", Eigen::Vector3d::Zero());
+    robot->Jv(Jv_, EE_LINK_NAME, Eigen::Vector3d::Zero());
 	robot->nullspaceMatrix(N_, Jv_);
 
 	// Dynamics
