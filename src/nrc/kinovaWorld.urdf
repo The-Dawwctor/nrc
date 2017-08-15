@@ -2,16 +2,16 @@
 
 <world name="nrc_world" gravity="0.0 0.0 -9.8">
 
-	<robot name="jaco_robot">
+	<robot name="kinova_jaco">
 		<!-- model node is required -->
-		<model dir="resources/nrc" path="jaco_robot.urdf" name="jaco_robot" />
+		<model dir="resources/nrc" path="kinova_jaco.urdf" name="kinova_jaco" />
 		<!-- origin node is optional -->
 		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	</robot>
 
 	<!-- Green ball for desired end effector position. -->
 	<!-- The ball's position is linked to the Redis key via the visualizer app. -->
-	<static_object name="nrc::jaco_robot::tasks::ee_pos_des">
+	<static_object name="nrc::kinova_jaco::tasks::ee_pos_des">
 		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 		<visual>
 			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
@@ -26,7 +26,7 @@
 
     <!-- Red ball for obstacle positions. -->
     <!-- The balls' positions are linked to the Redis key via the visualizer app. -->
-    <static_object name="nrc::jaco_robot::tasks::obs_pos">
+    <static_object name="nrc::kinova_jaco::tasks::obs_pos">
         <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
         <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />

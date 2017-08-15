@@ -48,8 +48,11 @@ public:
         command_torques_.setZero();
 
 		// Home configuration for Kuka iiwa
-        q_des_ << 90, -30, 0, 60, 0, -90, -60;
-        q_des_ *= M_PI / 180.0;
+        // q_des_ << 90, -30, 0, 60, 0, -90, -60;
+        // q_des_ *= M_PI / 180.0;
+
+        // Home configuration for Kinova Jaco
+        // q_des_ << 0, 0, 0, 0, 0, 0;
         dq_des_.setZero();
 
 		// Desired end effector position
