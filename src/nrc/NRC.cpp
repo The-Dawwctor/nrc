@@ -44,12 +44,16 @@ void readObstacles(redisAsyncContext* ac, void* reply, void* privdata) {
     redisReply* r = (redisReply*)reply;
 
     if (r->type == REDIS_REPLY_ARRAY && string(r->element[0]->str) == "message") {
-        auto allObs = (vector<Eigen::Vector3d>*) reply;
+        auto allObs = (vector<Eigen::Vector3d>*) privdata;
         Eigen::MatrixXd obs = RedisClient::decodeEigenMatrix(r->element[2]->str);
-        for (int i = 0; i < obs.rows(); i++) {
-            allObs->push_back(obs.row(i));
+        // decodeEigenMatrix converts row vector into column vector, correct it here
+        if (obs.cols() == 1) {
+            allObs->push_back(Eigen::Vector3d(obs(0), obs(1), obs(2)));
+        } else {
+            for (int i = 0; i < obs.rows(); i++) {
+                allObs->push_back(obs.row(i));
+            }
         }
-        cout << allObs << endl;
     }
 }
 
@@ -98,6 +102,7 @@ void NRC::writeRedisValues() {
 	// Send end effector position and desired position
 	redis_.setEigenMatrix(KEY_EE_POS, x_);
 	redis_.setEigenMatrix(KEY_EE_POS_DES, x_des_);
+    redis_.setEigenMatrix(KEY_OBS_POS, Eigen::Vector3d::Zero());
 
 	// Send torques
     redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
@@ -118,11 +123,11 @@ void NRC::updateModel() {
 
 	// Jacobians
     robot->Jv(Jv_, EE_LINK_NAME, Eigen::Vector3d::Zero());
-	robot->nullspaceMatrix(N_, Jv_);
+    robot->nullspaceMatrix(N_, Jv_);
 
 	// Dynamics
-	robot->taskInertiaMatrixWithPseudoInv(Lambda_x_, Jv_);
-	robot->gravityVector(g_);
+    robot->taskInertiaMatrixWithPseudoInv(Lambda_x_, Jv_);
+    robot->gravityVector(g_);
 }
 
 /**
