@@ -66,6 +66,8 @@ void NRC::readRedisValues() {
 	// Read from Redis current sensor values
 	robot->_q = redis_.getEigenMatrix(KEY_JOINT_POSITIONS);
 	robot->_dq = redis_.getEigenMatrix(KEY_JOINT_VELOCITIES);
+    // robot->_q = redis_.getEigenMatrix("scl::robot::kinovajaco6::sensors::q");
+    // robot->_dq = redis_.getEigenMatrix("scl::robot::kinovajaco6::sensors::dq");
 
 	// // Get current simulation timestamp from Redis
 	t_curr_ = stod(redis_.get(KEY_TIMESTAMP));
@@ -106,6 +108,7 @@ void NRC::writeRedisValues() {
 
 	// Send torques
     redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
+    // redis_.setEigenMatrixString("scl::robot::kinovajaco6::actuators::fgc", command_torques_);
 }
 
 /**

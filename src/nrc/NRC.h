@@ -48,7 +48,8 @@ public:
         command_torques_.setZero();
 
         // Home configuration for Kinova Jaco
-        q_des_.setZero();
+        q_des_ << 0, 0, 0, 180, 0, 0;
+        q_des_ *= M_PI / 180.0;
         dq_des_.setZero();
 
 		// Desired end effector position
