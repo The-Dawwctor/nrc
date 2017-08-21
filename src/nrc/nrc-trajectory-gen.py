@@ -61,7 +61,7 @@ def main():
 
     POSITIONS_KEY = "nrc::optitrack::pos_rigid_bodies"
     ORIENTATIONS_KEY = "nrc::optitrack::ori_rigid_bodies"
-    EE_KEY = "nrc::kuka_iiwa::tasks::ee_pos"
+    EE_KEY = "nrc::kinova_jaco::tasks::ee_pos"
 
     interp = []
     optiGoals = []
@@ -130,7 +130,8 @@ def main():
                 idx = 0
                 interp = generateTrajectory(goals)
                 rPub.publish("nrc-trajectory", str(interp[idx].tolist()))
-                rPub.publish("nrc-obstacles", str(obstacles))
+                if obstacles:
+                    rPub.publish("nrc-obstacles", str(obstacles))
 
                 # Spline smoothness verification graph
                 # fig = plt.figure()
