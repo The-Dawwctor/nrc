@@ -86,6 +86,7 @@ protected:
     const double kToleranceX = 0.1;  // Operational space goal tolerance
     const double kToleranceDx = 0.1;  // Operational space goal tolerance
 	const double kMaxVelocity = 0.5;  // Maximum end effector velocity
+    const double kMaxJointTorque = 30; // Joint torque limits
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
 	const int kInitializationPause = 1e6;  // 1ms pause before starting control loop

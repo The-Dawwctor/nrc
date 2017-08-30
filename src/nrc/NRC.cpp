@@ -105,6 +105,14 @@ void NRC::writeRedisValues() {
     redis_.setEigenMatrix(KEY_OBS_POS, Eigen::Vector3d::Zero());
 
 	// Send torques
+    /*
+    for (int i = 0; i < command_torques_.size(); i++) {
+        if (abs(command_torques_[i]) >= kMaxJointTorque) {
+            command_torques_ = kMaxJointTorque * command_torques_.normalized();
+            break;
+        }
+    }
+    */
     redis_.setEigenMatrix(KEY_COMMAND_TORQUES, command_torques_);
 }
 
@@ -136,9 +144,13 @@ void NRC::updateModel() {
  * Controller to initialize robot to desired joint position.
  */
 NRC::ControllerStatus NRC::computeJointSpaceControlTorques() {
-	// Finish if the robot has converged to q_initial
 	Eigen::VectorXd q_err = robot->_q - q_des_;
-	Eigen::VectorXd dq_err = robot->_dq - dq_des_;
+    dq_des_ = -(kp_joint_ / kv_joint_) * q_err;
+    double v = kMaxVelocity / dq_des_.norm();
+    if (v > 1) v = 1;
+	Eigen::VectorXd dq_err = robot->_dq - v * dq_des_;
+
+    // Finish if robot converged to q_initial
 	if (q_err.norm() < kToleranceInitQ && dq_err.norm() < kToleranceInitDq) {
 		return FINISHED;
 	}
