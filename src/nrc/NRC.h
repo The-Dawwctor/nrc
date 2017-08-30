@@ -48,12 +48,11 @@ public:
         command_torques_.setZero();
 
         // Home configuration for Kinova Jaco
-        q_des_ << 0, 0, 0, 180, 0, 0;
-        q_des_ *= M_PI / 180.0;
+        q_des_ << 1.672561, 0.479626, 1.945289, 0.625663, 1.696683, 0.25158;
         dq_des_.setZero();
 
-		// Desired end effector position
-        x_des_ << 0.1, 0.4, 0.7;
+        // Desired end effector position
+        x_des_ << 0.3, 0, 0.3;
         dx_des_.setZero();
     }
 
@@ -71,10 +70,10 @@ protected:
 		JOINT_SPACE_INITIALIZATION,
 		OP_SPACE_POSITION_CONTROL,
         OP_SPACE_GOAL_SET
-	};
+    };
 
 	// Return values from computeControlTorques() methods
-	enum ControllerStatus {
+    enum ControllerStatus {
 		RUNNING,  // Not yet converged to goal position
 		FINISHED  // Converged to goal position
 	};
